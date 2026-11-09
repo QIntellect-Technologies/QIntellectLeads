@@ -11,8 +11,8 @@
   // Wrangler auto-provisions these on the first Cloudflare deploy. Keeping
   // account-specific IDs out of the public repo lets the same config work for
   // local development, Cloudflare Workers Builds and Freebuff Sites.
-  "d1_databases": [{ "binding": "DB", "database_name": "qintellectleads" }],
-  "r2_buckets": [{ "binding": "FILES", "bucket_name": "qintellectleads-files" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "crm" }],
+  "r2_buckets": [{ "binding": "FILES" }],
   // Production fallback. Local development is ticked by the Vite scheduler.
   "triggers": { "crons": ["*/5 * * * *"] },
   "observability": { "enabled": true }
