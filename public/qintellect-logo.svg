@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="QIntellect Technologies">
+  <defs>
+    <linearGradient id="ring" x1="50" y1="60" x2="350" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2e8fd8"/>
+      <stop offset=".48" stop-color="#0d3d7d"/>
+      <stop offset="1" stop-color="#082750"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="145" y1="135" x2="260" y2="270" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1b6fb5"/>
+      <stop offset="1" stop-color="#0b2c5e"/>
+    </linearGradient>
+    <linearGradient id="brain" x1="90" y1="120" x2="175" y2="235" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f2fbff"/>
+      <stop offset="1" stop-color="#c8edfb"/>
+    </linearGradient>
+    <path id="arc" d="M 60 202 A 140 140 0 0 1 340 202"/>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#0b2c5e" flood-opacity=".22"/>
+    </filter>
+  </defs>
+
+  <circle cx="200" cy="200" r="196" fill="#f8fcff"/>
+  <circle cx="200" cy="200" r="188" fill="none" stroke="#d4edf9" stroke-width="4"/>
+  <circle cx="200" cy="200" r="175" fill="none" stroke="url(#ring)" stroke-width="11"/>
+  <circle cx="200" cy="200" r="156" fill="#eef9ff"/>
+
+  <g fill="none" stroke="#6fd4f2" stroke-width="2" opacity=".7">
+    <path d="M40 210h50l12 12h38"/>
+    <path d="M44 188h38l16 16h34"/>
+    <path d="M310 188h-40l-14 14h-36"/>
+    <path d="M320 227h-46l-10-10h-30"/>
+    <path d="M272 112l-18 24v30"/>
+    <path d="M290 286l-30-30v-22"/>
+    <path d="M110 284l28-30v-18"/>
+  </g>
+  <g fill="#2da8dc">
+    <circle cx="40" cy="210" r="3"/>
+    <circle cx="44" cy="188" r="3"/>
+    <circle cx="310" cy="188" r="3"/>
+    <circle cx="320" cy="227" r="3"/>
+    <circle cx="272" cy="112" r="3"/>
+    <circle cx="290" cy="286" r="3"/>
+    <circle cx="110" cy="284" r="3"/>
+    <circle cx="88" cy="220" r="2.5"/>
+    <circle cx="305" cy="244" r="2.5"/>
+  </g>
+
+  <text fill="#0e376d" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800" letter-spacing="2.8">
+    <textPath href="#arc" startOffset="50%" text-anchor="middle">QINTELLECT TECHNOLOGIES</textPath>
+  </text>
+
+  <path d="M266 108a101 101 0 0 1 0 160" fill="none" stroke="#1a5ea3" stroke-width="15" stroke-linecap="round" opacity=".92"/>
+  <path d="M264 274l45 46" fill="none" stroke="#0e376d" stroke-width="21" stroke-linecap="round"/>
+  <path d="M264 274l45 46" fill="none" stroke="#2e8fd8" stroke-width="9" stroke-linecap="round" opacity=".65"/>
+
+  <g filter="url(#soft)">
+    <path d="M165 118c-18-9-38 1-41 19-14 3-22 16-18 29-14 10-13 30 1 38-4 16 9 30 25 30 6 10 21 13 32 5 12 2 23-7 24-19 9-6 12-17 7-27V143c0-13-13-23-30-25Z" fill="url(#brain)" stroke="#15538e" stroke-width="4" stroke-linejoin="round"/>
+  </g>
+  <g fill="none" stroke="#2b86c0" stroke-width="2.4" stroke-linecap="round">
+    <path d="M155 132c-8 4-12 13-9 21-9 4-11 16-3 22-5 8-1 19 8 21 3 8 13 10 19 4 7 2 13-4 11-11 6-5 5-15-2-19 2-8-4-16-12-16-2-8-6-13-12-15"/>
+    <path d="M141 150c8 2 11 8 10 16"/>
+    <path d="M135 177c8 0 15 4 17 11"/>
+    <path d="M143 201c6-3 13-2 18 3"/>
+    <path d="M161 140c-2 7 1 12 8 15"/>
+    <path d="M158 165c-6 3-8 8-7 14"/>
+    <path d="M160 188c-4 5-4 11 0 16"/>
+    <path d="M169 154c7 1 12 6 13 13"/>
+  </g>
+
+  <g stroke="#0b2c5e" stroke-width="3.5">
+    <path d="M151 137h-12m12 17h-12m12 17h-12m12 17h-12m12 17h-12"/>
+    <path d="M249 137h12m-12 17h12m-12 17h12m-12 17h12m-12 17h12"/>
+    <path d="M166 122v-12m17 12v-12m17 12v-12m17 12v-12m17 12v-12"/>
+    <path d="M166 290v12m17-12v12m17-12v12m17-12v12m17-12v12"/>
+  </g>
+
+  <rect x="148" y="142" width="104" height="104" rx="18" fill="url(#chip)" stroke="#f3fbff" stroke-width="4"/>
+  <rect x="156" y="150" width="88" height="88" rx="12" fill="none" stroke="#56c4ec" stroke-width="2" opacity=".75"/>
+  <circle cx="200" cy="205" r="25" fill="none" stroke="#b9f0ff" stroke-width="7"/>
+  <path d="M216 221l17 18" fill="none" stroke="#b9f0ff" stroke-width="7" stroke-linecap="round"/>
+  <path d="M188 204h24M200 192v24" stroke="#8fe5ff" stroke-width="2" opacity=".65"/>
+</svg>

@@ -1,0 +1,259 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+/* Design tokens. Everything rounded is a squircle (global rule below), so
+   radii run one step larger than a plain border-radius would. */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-bg: #eef0f6;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f5fa;
+  --color-raised: #ebeef5;
+  --color-line: #e6e8f0;
+  --color-line-strong: #d6dae6;
+  --color-fg: #14151d;
+  --color-muted: #62667a;
+  --color-faint: #9397a8;
+  --color-accent: #5a55de;
+  --color-accent-soft: #eeedfc;
+  --color-success: #1d9a66;
+  --color-success-soft: #e5f6ed;
+  --color-warning: #c27a12;
+  --color-warning-soft: #fdf1df;
+  --color-danger: #d4462f;
+  --color-danger-soft: #fdebe8;
+  --color-info: #2f77d1;
+  --color-info-soft: #e8f1fd;
+
+  --radius-control: 11px;
+  --radius-card: 19px;
+  --radius-dialog: 24px;
+  --radius-tile: 10px;
+
+  --shadow-card: 0 1px 2px rgb(20 21 29 / 0.035), 0 10px 28px -26px rgb(20 21 29 / 0.22), 0 0 0 1px rgb(20 21 29 / 0.035);
+  --shadow-lift: 0 2px 4px rgb(20 21 29 / 0.035), 0 18px 42px -24px rgb(20 21 29 / 0.24), 0 0 0 1px rgb(20 21 29 / 0.055);
+  --shadow-pop: 0 0 0 1px rgb(20 21 29 / 0.06), 0 18px 50px -16px rgb(20 21 29 / 0.28);
+  --shadow-dialog: 0 0 0 1px rgb(20 21 29 / 0.06), 0 34px 90px -24px rgb(20 21 29 / 0.38);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-110%);
+  }
+  55% {
+    transform: translateX(170%);
+  }
+  100% {
+    transform: translateX(330%);
+  }
+}
+
+@layer components {
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--color-raised) 74%, var(--color-surface));
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.62), transparent);
+    animation: shimmer 1.55s ease-in-out infinite;
+  }
+
+  /* Shared data-table rhythm. Pages keep their own column widths and content. */
+  .data-table thead tr {
+    background: linear-gradient(180deg, #fbfbfe 0%, #f5f6fa 100%);
+  }
+  .data-table thead th {
+    color: var(--color-faint);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .data-table tbody tr {
+    transition: background-color 160ms ease, box-shadow 160ms ease;
+  }
+  .data-table tbody tr:hover {
+    background: color-mix(in srgb, var(--color-accent-soft) 38%, var(--color-surface));
+  }
+  .data-table tbody tr:hover > td:first-child {
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--color-accent) 72%, transparent);
+  }
+  .data-table tbody tr:focus-within {
+    background: color-mix(in srgb, var(--color-accent-soft) 38%, var(--color-surface));
+  }
+
+  /* Small, deliberate finish on dark product surfaces. */
+  .premium-dark {
+    background:
+      radial-gradient(110% 90% at 92% 0%, rgb(90 85 222 / 0.2), transparent 55%),
+      radial-gradient(70% 70% at 0% 100%, rgb(29 154 102 / 0.1), transparent 60%),
+      #101116;
+  }
+  .premium-grid {
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.7) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.7) 1px, transparent 1px);
+    background-size: 38px 38px;
+    mask-image: radial-gradient(ellipse at 72% 20%, black, transparent 72%);
+    opacity: 0.045;
+  }
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    corner-shape: squircle;
+    border-color: var(--color-line);
+  }
+  .round,
+  .round::before,
+  .round::after {
+    corner-shape: round;
+  }
+  html {
+    background: #e8eaf1;
+    color-scheme: light;
+    overscroll-behavior: none;
+    height: 100%;
+  }
+  body {
+    background:
+      radial-gradient(1100px 700px at 92% -10%, rgb(90 85 222 / 0.12), transparent 58%),
+      radial-gradient(900px 620px at 5% 105%, rgb(29 154 102 / 0.06), transparent 60%),
+      #e8eaf1;
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss03';
+    font-size: 14px;
+    letter-spacing: -0.006em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    height: 100%;
+    overflow: hidden;
+  }
+  #root {
+    height: 100%;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+    outline-offset: 1px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  }
+  input[type='search']::-webkit-search-cancel-button {
+    appearance: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility animate-fade {
+  animation: fade-in 0.22s ease-out both;
+}
+
+@utility animate-rise {
+  animation: rise-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@utility animate-progress {
+  animation: indeterminate 1.25s ease-in-out infinite;
+}
+
+/* Printable invoice / quotation. The editor and app chrome disappear leaving
+   a clean A4 document, so Print and Save as PDF produce the same layout. */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  html,
+  body {
+    background: #fff !important;
+    overflow: visible !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .invoice-print,
+  .invoice-print * {
+    visibility: visible;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .invoice-print {
+    position: fixed !important;
+    inset: 0 auto auto 0 !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+  .invoice-print table {
+    page-break-inside: auto;
+  }
+  .invoice-print tr {
+    page-break-inside: avoid;
+  }
+}
