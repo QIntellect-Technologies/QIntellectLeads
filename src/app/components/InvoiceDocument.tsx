@@ -139,7 +139,7 @@ export function InvoiceDocument({
             </tr>
           </thead>
           <tbody>
-            {data.items.map((item, index) => (
+            {data.items.filter((item) => item.enabled !== false).map((item, index) => (
               <tr key={item.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-[#fafcfe]'}>
                 <td className="border-b border-[#e5ebf2] px-2 py-2.5 align-top text-[9px] text-[#94a0af]">{String(index + 1).padStart(2, '0')}</td>
                 <td className="border-b border-[#e5ebf2] px-2 py-2.5 align-top">

@@ -355,6 +355,7 @@ export function InvoiceBuilder() {
   const { data: record, isLoading: recordLoading } = useInvoice(id)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
+  const [manualPricing, setManualPricing] = useState(false)
 
   useEffect(() => {
     if (!settings) return
@@ -364,6 +365,35 @@ export function InvoiceBuilder() {
       setDraft((current) => current ?? newDraft(initialKind, settings))
     }
   }, [settings, record, isNew, initialKind])
+
+  // Reopened documents that no longer match the saved plan figures open in
+  // manual mode so a team-size change cannot silently replace custom rates.
+  useEffect(() => {
+    if (!record || !settings) return
+    const expected = buildPricingLines(
+      settings.pricing,
+      record.packageNumber ?? 1,
+      record.employees,
+      record.additionalUsers,
+      record.branches,
+    )
+    const planLines = record.items.filter((item) => item.source && item.source !== 'Custom')
+    const customized =
+      expected.length !== planLines.length ||
+      expected.some((line) => {
+        const saved = planLines.find((item) => item.source === line.source)
+        return (
+          !saved ||
+          saved.enabled === false ||
+          saved.rate !== line.rate ||
+          saved.quantity !== line.quantity ||
+          saved.description !== line.description ||
+          saved.detail !== line.detail ||
+          saved.kind !== line.kind
+        )
+      })
+    if (customized) setManualPricing(true)
+  }, [record?.id, settings])
 
   const totals = useMemo(
     () =>
@@ -385,10 +415,16 @@ export function InvoiceBuilder() {
     setDraft((current) => (current ? { ...current, [key]: value } : current))
   }
 
-  function applyPlan(patch: Partial<Pick<Draft, 'packageNumber' | 'employees' | 'additionalUsers' | 'branches'>>) {
+  function applyPlan(
+    patch: Partial<Pick<Draft, 'packageNumber' | 'employees' | 'additionalUsers' | 'branches'>>,
+    options?: { force?: boolean },
+  ) {
     setDraft((current) => {
       if (!current || !settings) return current
       const next = { ...current, ...patch }
+      // Manual mode keeps the current line items while the package/team inputs
+      // change. Reset to plan is the explicit way back to generated figures.
+      if (manualPricing && !options?.force) return next
       const custom = current.items.filter((item) => !item.source || item.source === 'Custom')
       const plan = buildPricingLines(
         settings.pricing,
@@ -401,7 +437,14 @@ export function InvoiceBuilder() {
     })
   }
 
-  function updateCustomLine(lineId: string, field: keyof InvoiceLine, value: string | number) {
+  function switchToAutoPricing() {
+    setManualPricing(false)
+    applyPlan({}, { force: true })
+  }
+
+  function updateLine(lineId: string, field: keyof InvoiceLine, value: string | number | boolean) {
+    const line = draft?.items.find((item) => item.id === lineId)
+    if (line?.source && line.source !== 'Custom') setManualPricing(true)
     setDraft((current) => {
       if (!current) return current
       return {
@@ -411,8 +454,14 @@ export function InvoiceBuilder() {
     })
   }
 
-  function removeCustomLine(lineId: string) {
+  function removeLine(lineId: string) {
+    const line = draft?.items.find((item) => item.id === lineId)
+    if (line?.source && line.source !== 'Custom') setManualPricing(true)
     setDraft((current) => (current ? { ...current, items: current.items.filter((item) => item.id !== lineId) } : current))
+  }
+
+  function addLine() {
+    setDraft((current) => (current ? { ...current, items: [...current.items, newCustomInvoiceLine()] } : current))
   }
 
   async function save() {
@@ -421,8 +470,8 @@ export function InvoiceBuilder() {
       toast('Add the client name before saving.', 'danger')
       return
     }
-    if (!draft.items.length) {
-      toast('Add at least one invoice line.', 'danger')
+    if (!draft.items.some((item) => item.enabled !== false)) {
+      toast('Add or enable at least one invoice line.', 'danger')
       return
     }
     setSaving(true)
@@ -556,8 +605,11 @@ export function InvoiceBuilder() {
           <Card className="p-4">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <div className="text-[13px] font-semibold">Pricing plan</div>
-                <div className="mt-0.5 text-[11.5px] text-muted">The plan lines update from your saved figures.</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-[13px] font-semibold">Pricing plan</div>
+                  {manualPricing && <Badge tone="warning">Manual</Badge>}
+                </div>
+                <div className="mt-0.5 text-[11.5px] text-muted">Auto-priced from your saved package. Every line can be edited below.</div>
               </div>
               <Sparkles className="size-4 text-accent" />
             </div>
@@ -589,10 +641,23 @@ export function InvoiceBuilder() {
                 )}
               </div>
             )}
+            <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-control border border-line bg-surface-2/70 px-3 py-2.5">
+              <Checkbox
+                className="mt-0.5"
+                checked={manualPricing}
+                onChange={(event) => (event.target.checked ? setManualPricing(true) : switchToAutoPricing())}
+              />
+              <span className="min-w-0">
+                <span className="block text-[12px] font-semibold text-fg">Manual pricing</span>
+                <span className="mt-0.5 block text-[11px] leading-relaxed text-muted">
+                  Keep your own rates. Package and team changes stop overwriting the line items.
+                </span>
+              </span>
+            </label>
             <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-faint">
-              <span>Plan lines are locked to these figures. Add custom lines for anything else.</span>
-              <button type="button" className="shrink-0 font-semibold text-accent hover:underline" onClick={() => applyPlan({})}>
-                Refresh
+              <span>Turn a line off to exclude it, or add your own below.</span>
+              <button type="button" className="shrink-0 font-semibold text-accent hover:underline" onClick={switchToAutoPricing}>
+                {manualPricing ? 'Reset to plan' : 'Refresh'}
               </button>
             </div>
           </Card>
@@ -601,44 +666,61 @@ export function InvoiceBuilder() {
             <div className="flex items-center justify-between gap-2">
               <div>
                 <div className="text-[13px] font-semibold">Line items</div>
-                <div className="mt-0.5 text-[11.5px] text-muted">Quantity × rate. Totals update instantly.</div>
+                <div className="mt-0.5 text-[11.5px] text-muted">Every line is editable. Toggle a line off to leave it out of the total.</div>
               </div>
-              <Button size="sm" onClick={() => setDraft((current) => (current ? { ...current, items: [...current.items, newCustomInvoiceLine()] } : current))}>
+              <Button size="sm" onClick={addLine}>
                 <Plus />
-                Custom
+                Add line
               </Button>
             </div>
             <div className="mt-3 space-y-2">
               {draft.items.map((item, index) => {
                 const custom = !item.source || item.source === 'Custom'
+                const enabled = item.enabled !== false
                 return (
-                  <div key={item.id} className={cx('rounded-control border p-2.5', custom ? 'border-line-strong bg-white' : 'border-line bg-surface-2/70')}>
+                  <div
+                    key={item.id}
+                    className={cx(
+                      'rounded-control border p-2.5 transition-opacity',
+                      enabled
+                        ? custom
+                          ? 'border-line-strong bg-white'
+                          : 'border-line bg-surface-2/70'
+                        : 'border-line bg-surface-2/40 opacity-60',
+                    )}
+                  >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        {custom ? (
+                      <div className="flex min-w-0 flex-1 items-start gap-2">
+                        <Checkbox
+                          className="mt-2"
+                          checked={enabled}
+                          onChange={(event) => updateLine(item.id, 'enabled', event.target.checked)}
+                          aria-label={enabled ? 'Exclude this line' : 'Include this line'}
+                          title={enabled ? 'Exclude from invoice' : 'Include in invoice'}
+                        />
+                        <div className="min-w-0 flex-1">
                           <Input
                             value={item.description}
-                            onChange={(event) => updateCustomLine(item.id, 'description', event.target.value)}
-                            placeholder={`Custom line ${index + 1}`}
+                            onChange={(event) => updateLine(item.id, 'description', event.target.value)}
+                            placeholder={custom ? `Custom line ${index + 1}` : 'Line description'}
                             className="h-8 text-[12.5px]"
                           />
-                        ) : (
-                          <div className="text-[12.5px] font-semibold leading-snug">{item.description}</div>
-                        )}
-                        {custom ? (
                           <Input
                             value={item.detail ?? ''}
-                            onChange={(event) => updateCustomLine(item.id, 'detail', event.target.value)}
+                            onChange={(event) => updateLine(item.id, 'detail', event.target.value)}
                             placeholder="Optional detail"
                             className="mt-1 h-7 text-[11.5px]"
                           />
-                        ) : (
-                          <div className="mt-0.5 text-[10.5px] text-faint">{item.detail}</div>
-                        )}
+                        </div>
                       </div>
-                      <span className="rounded bg-white px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-muted">
-                        {custom ? 'Custom' : 'Plan'}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="rounded bg-white px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-muted">
+                          {custom ? 'Custom' : 'Plan'}
+                        </span>
+                        <Button size="icon-sm" variant="ghost" onClick={() => removeLine(item.id)} title="Remove line">
+                          <Trash2 />
+                        </Button>
+                      </div>
                     </div>
                     <div className="mt-2 grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-1.5">
                       <Field label="Qty">
@@ -646,8 +728,7 @@ export function InvoiceBuilder() {
                           type="number"
                           min={0}
                           value={item.quantity}
-                          disabled={!custom}
-                          onChange={(event) => updateCustomLine(item.id, 'quantity', Number(event.target.value))}
+                          onChange={(event) => updateLine(item.id, 'quantity', Number(event.target.value))}
                           className="h-8 text-[12px]"
                         />
                       </Field>
@@ -656,29 +737,29 @@ export function InvoiceBuilder() {
                           type="number"
                           min={0}
                           value={item.rate}
-                          disabled={!custom}
-                          onChange={(event) => updateCustomLine(item.id, 'rate', Number(event.target.value))}
+                          onChange={(event) => updateLine(item.id, 'rate', Number(event.target.value))}
                           className="h-8 text-[12px]"
                         />
                       </Field>
                       <Field label="Type">
-                        <Select value={item.kind} disabled={!custom} onChange={(event) => updateCustomLine(item.id, 'kind', event.target.value)}>
+                        <Select value={item.kind} onChange={(event) => updateLine(item.id, 'kind', event.target.value)}>
                           <option value="Monthly">Monthly</option>
                           <option value="One-time">One-time</option>
                         </Select>
                       </Field>
-                      <div className="flex items-end gap-1 pb-0.5">
-                        <div className="text-right text-[11.5px] font-semibold">{formatInvoiceMoney(item.quantity * item.rate)}</div>
-                        {custom && (
-                          <Button size="icon-sm" variant="ghost" onClick={() => removeCustomLine(item.id)} title="Remove line">
-                            <Trash2 />
-                          </Button>
-                        )}
+                      <div className="pb-1 text-right">
+                        <div className={cx('text-[11.5px] font-semibold', !enabled && 'text-faint line-through')}>{formatInvoiceMoney(item.quantity * item.rate)}</div>
+                        <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-faint">{enabled ? 'Line total' : 'Excluded'}</div>
                       </div>
                     </div>
                   </div>
                 )
               })}
+              {draft.items.length === 0 && (
+                <div className="rounded-control border border-dashed border-line-strong bg-surface-2/50 px-4 py-6 text-center text-[12px] text-muted">
+                  No lines yet. Add a line to start building this document.
+                </div>
+              )}
             </div>
           </Card>
 
@@ -730,7 +811,7 @@ export function InvoiceBuilder() {
         <div className="min-w-0">
           <div className="no-print mb-2 flex items-center justify-between px-1 text-[11.5px] text-faint">
             <span>Live preview · A4 document</span>
-            <span>{draft.items.length} line items · {formatInvoiceMoney(totals.total, draft.currency)}</span>
+            <span>{draft.items.filter((item) => item.enabled !== false).length} line items · {formatInvoiceMoney(totals.total, draft.currency)}</span>
           </div>
           <div className="overflow-auto rounded-[18px] bg-[#dfe3ec] p-3 sm:p-5">
             <InvoiceDocument settings={settings} data={draft} totals={totals} />

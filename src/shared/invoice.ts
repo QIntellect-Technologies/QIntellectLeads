@@ -114,7 +114,7 @@ export function buildPricingLines(
       source: 'Branches',
     })
   }
-  return lines
+  return lines.map((line) => ({ ...line, enabled: true }))
 }
 
 export function newCustomInvoiceLine(): InvoiceLine {
@@ -126,6 +126,7 @@ export function newCustomInvoiceLine(): InvoiceLine {
     rate: 0,
     kind: 'One-time',
     source: 'Custom',
+    enabled: true,
   }
 }
 
@@ -145,7 +146,8 @@ export function calculateInvoiceTotals(
     discountValue: number
   },
 ): InvoiceTotals {
-  const subtotal = round2(items.reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.rate), 0))
+  const activeItems = items.filter((item) => item.enabled !== false)
+  const subtotal = round2(activeItems.reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.rate), 0))
   const discountValue = Math.max(0, Number(options.discountValue) || 0)
   const discountAmount = round2(
     options.discountType === 'percent'
@@ -157,10 +159,10 @@ export function calculateInvoiceTotals(
   const taxAmount = round2(taxableAmount * (taxRate / 100))
   const total = round2(taxableAmount + taxAmount)
   const monthlyRecurring = round2(
-    items.filter((item) => item.kind === 'Monthly').reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.rate), 0),
+    activeItems.filter((item) => item.kind === 'Monthly').reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.rate), 0),
   )
   const oneTimeTotal = round2(
-    items.filter((item) => item.kind === 'One-time').reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.rate), 0),
+    activeItems.filter((item) => item.kind === 'One-time').reduce((sum, item) => sum + Math.max(0, item.quantity) * Math.max(0, item.rate), 0),
   )
   return { subtotal, discountAmount, taxableAmount, taxRate, taxAmount, total, monthlyRecurring, oneTimeTotal }
 }

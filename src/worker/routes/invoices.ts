@@ -74,6 +74,7 @@ function normalizeLine(value: unknown): InvoiceLine | null {
     source: ['Package', 'Setup', 'Users', 'Branches', 'Custom'].includes(String(raw.source))
       ? (raw.source as InvoiceLine['source'])
       : 'Custom',
+    enabled: raw.enabled !== false,
   }
 }
 

@@ -536,6 +536,8 @@ export interface InvoiceLine {
   rate: number
   kind: InvoiceLineKind
   source?: InvoiceLineSource
+  /** Excluded lines stay on the draft but are not billed. Missing means included. */
+  enabled?: boolean
 }
 
 export interface InvoiceClient {
