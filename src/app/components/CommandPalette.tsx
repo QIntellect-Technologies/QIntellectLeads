@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Handshake, LayoutGrid, Search, TrendingUp, Upload, Users } from 'lucide-react'
+import { Handshake, LayoutGrid, PhoneCall, Search, TrendingUp, Upload, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -37,6 +37,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const shortcuts: Item[] = [
     { key: 's-today', label: 'Go to today', to: '/', icon: <LayoutGrid className="size-4 text-muted" /> },
     { key: 's-leads', label: 'Go to leads', to: '/leads', icon: <Users className="size-4 text-muted" /> },
+    { key: 's-calls', label: 'Go to calls', to: '/calls', icon: <PhoneCall className="size-4 text-muted" /> },
     { key: 's-pipeline', label: 'Go to pipeline', to: '/pipeline', icon: <Handshake className="size-4 text-muted" /> },
     { key: 's-reports', label: 'Go to reports', to: '/reports', icon: <TrendingUp className="size-4 text-muted" /> },
     { key: 's-import', label: 'Import or export', to: '/import-export', icon: <Upload className="size-4 text-muted" /> },

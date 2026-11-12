@@ -6,7 +6,7 @@ import { id, now } from '../db'
 import type { AppContext } from '../env'
 import { LeadRuleError, addInteraction, applyStatusChange, asText, findDuplicateLeads, listLeads, normalizeStatusInput, refreshPriority } from '../lead-core'
 import { loadCadence } from '../settings'
-import { CHANNELS, MEETING_STATUSES, MEETING_TYPES, addDaysISO, isClosedStatus, normalizePhone, todayISO } from '../../shared/leads'
+import { CHANNELS, MEETING_STATUSES, MEETING_TYPES, addDaysISO, isCallResult, isClosedStatus, normalizePhone, todayISO } from '../../shared/leads'
 import type { FollowUpRow, MeetingRow } from '../../shared/types'
 
 export const leadActivity = new Hono<AppContext>()
@@ -26,12 +26,14 @@ leadActivity.post('/leads/:id/interactions', async (c) => {
   const db = c.get('db')
   const owner = c.get('user').sub
   const leadId = c.req.param('id')
-  const input = await c.req.json<{ channel?: string; outcome?: string | null; note?: string | null; status?: string; lossReason?: string | null; nextFollowUpDate?: string | null; nextFollowUpTime?: string | null; followUpId?: string | null }>()
+  const input = await c.req.json<{ channel?: string; outcome?: string | null; note?: string | null; status?: string; lossReason?: string | null; nextFollowUpDate?: string | null; nextFollowUpTime?: string | null; followUpId?: string | null; callResult?: string | null; contactId?: string | null; contactName?: string | null; phoneNumber?: string | null }>()
   if (!(await leadExists(db, owner, leadId))) return c.json({ error: 'Not found.' }, 404)
   const channel = CHANNELS.includes(input.channel as never) ? (input.channel as string) : null
   if (!channel) return c.json({ error: 'Choose a channel.' }, 400)
   const note = asText(input.note, 2000)
-  const outcome = asText(input.outcome, 200)
+  const callResult = channel === 'Call' && isCallResult(input.callResult) && input.callResult !== 'Unknown' ? input.callResult : null
+  if (channel === 'Call' && !callResult) return c.json({ error: 'Choose a call result.' }, 400)
+  const outcome = asText(input.outcome, 200) ?? callResult
   if (!note && !outcome) return c.json({ error: 'Add a note or an outcome.' }, 400)
 
   const nextStatus = input.status === undefined ? null : normalizeStatusInput(input.status)
@@ -40,15 +42,33 @@ leadActivity.post('/leads/:id/interactions', async (c) => {
   const existing = await db.prepare(`SELECT status FROM leads WHERE owner_sub = ? AND id = ?`).bind(owner, leadId).first<{ status: string }>()
   if (!existing) return c.json({ error: 'Not found.' }, 404)
 
+  let contactId: string | null = null
+  let contactName: string | null = null
+  let phoneNumber: string | null = null
+  if (channel === 'Call') {
+    phoneNumber = normalizePhone(input.phoneNumber)
+    contactName = asText(input.contactName, 120)
+    if (input.contactId) {
+      const contact = await db
+        .prepare(`SELECT id, full_name, phone_number FROM lead_contacts WHERE owner_sub = ? AND lead_id = ? AND id = ?`)
+        .bind(owner, leadId, input.contactId)
+        .first<{ id: string; full_name: string; phone_number: string | null }>()
+      if (!contact) return c.json({ error: 'Contact not found.' }, 404)
+      contactId = contact.id
+      contactName = contact.full_name
+      phoneNumber = phoneNumber ?? contact.phone_number
+    }
+  }
+
   try {
     if (nextStatus && nextStatus !== existing.status) {
-      await applyStatusChange(db, owner, leadId, nextStatus, { channel, lossReason: asText(input.lossReason, 120) })
+      await applyStatusChange(db, owner, leadId, nextStatus, { channel, lossReason: asText(input.lossReason, 120), recordInteraction: false })
       if (nextStatus === 'proposal_sent') {
         const cadence = await loadCadence(db, owner, c.env)
         await applyCadence(db, owner, leadId, 'proposal', todayISO(), cadence)
       }
     }
-    await addInteraction(db, owner, leadId, { channel, outcome, note, statusAfter: nextStatus ?? existing.status })
+    await addInteraction(db, owner, leadId, { channel, outcome, note, statusAfter: nextStatus ?? existing.status, callResult, contactId, contactName, phoneNumber })
 
     const closed = isClosedStatus((nextStatus ?? existing.status) as never)
     let followUpId: string | null = null
@@ -212,10 +232,12 @@ leadActivity.post('/follow-ups/:id/complete', async (c) => {
     lossReason?: string | null
     postponeTo?: string | null
     postponeReason?: string | null
+    callResult?: string | null
   }>()
   const leadId = existing.lead_id as string
   const today = todayISO()
   const channel = CHANNELS.includes(input.channel as never) ? (input.channel as string) : 'Call'
+  const callResult = channel === 'Call' && isCallResult(input.callResult) && input.callResult !== 'Unknown' ? input.callResult : null
 
   // Postponing is a reschedule with a reason, not a completed touch.
   if (input.postponeTo) {
@@ -234,6 +256,7 @@ leadActivity.post('/follow-ups/:id/complete', async (c) => {
       channel,
       outcome: 'Follow-up postponed',
       note: asText(input.note, 2000) ?? `Postponed to ${input.postponeTo}: ${reason}`,
+      callResult,
     })
     await refreshPriority(db, owner, leadId)
     return privateJson(c, { ok: true, postponedTo: input.postponeTo })
@@ -265,6 +288,7 @@ leadActivity.post('/follow-ups/:id/complete', async (c) => {
         channel,
         lossReason: asText(input.lossReason, 120),
         note: asText(input.note, 2000) ?? undefined,
+        recordInteraction: false,
       })
     } catch (error) {
       if (error instanceof LeadRuleError) return c.json({ error: error.message }, 400)
@@ -278,6 +302,7 @@ leadActivity.post('/follow-ups/:id/complete', async (c) => {
     outcome: asText(input.outcome, 200) ?? (closing ? `Lead closed ${input.status}` : 'Follow-up completed'),
     note: noteParts.length ? noteParts.join(' · ') : null,
     statusAfter: closing ? input.status : null,
+    callResult,
   })
 
   let nextFollowUpId: string | null = null

@@ -160,6 +160,10 @@ const mapInteraction = (r: Row): LeadInteraction => {
     note: (r.note as string | null) ?? null,
     statusAfter,
     createdAt: Number(r.created_at ?? 0),
+    callResult: (r.call_result as LeadInteraction['callResult']) ?? null,
+    contactId: (r.contact_id as string | null) ?? null,
+    contactName: (r.contact_name as string | null) ?? null,
+    phoneNumber: (r.phone_number as string | null) ?? null,
   }
 }
 
@@ -354,16 +358,40 @@ export async function addInteraction(
   db: D1Database,
   owner: string,
   leadId: string,
-  input: { channel: string; outcome?: string | null; note?: string | null; statusAfter?: string | null; date?: string },
+  input: {
+    channel: string
+    outcome?: string | null
+    note?: string | null
+    statusAfter?: string | null
+    date?: string
+    callResult?: string | null
+    contactId?: string | null
+    contactName?: string | null
+    phoneNumber?: string | null
+  },
 ): Promise<string> {
   const interactionId = crypto.randomUUID()
   const date = input.date ?? new Date().toISOString()
   await db
     .prepare(
-      `INSERT INTO interactions (id, owner_sub, lead_id, interaction_date, channel, outcome, note, status_after, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO interactions (id, owner_sub, lead_id, interaction_date, channel, outcome, note, status_after, call_result, contact_id, contact_name, phone_number, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(interactionId, owner, leadId, date, input.channel, input.outcome ?? null, input.note ?? null, input.statusAfter ?? null, now())
+    .bind(
+      interactionId,
+      owner,
+      leadId,
+      date,
+      input.channel,
+      input.outcome ?? null,
+      input.note ?? null,
+      input.statusAfter ?? null,
+      input.callResult ?? null,
+      input.contactId ?? null,
+      input.contactName ?? null,
+      input.phoneNumber ?? null,
+      now(),
+    )
     .run()
   return interactionId
 }
@@ -459,7 +487,7 @@ export async function applyStatusChange(
   owner: string,
   leadId: string,
   nextStatus: LeadStatusKey,
-  options: { lossReason?: string | null; note?: string | null; channel?: string; outcome?: string | null } = {},
+  options: { lossReason?: string | null; note?: string | null; channel?: string; outcome?: string | null; recordInteraction?: boolean } = {},
 ): Promise<void> {
   const existing = await db.prepare(`SELECT status, lead_code FROM leads WHERE owner_sub = ? AND id = ?`).bind(owner, leadId).first<{ status: string; lead_code: string }>()
   if (!existing) throw new LeadRuleError('Lead not found.')
@@ -475,12 +503,14 @@ export async function applyStatusChange(
     await upsertRequirement(db, owner, leadId, { lossReason: options.lossReason?.trim() ?? null })
   }
   if (isClosedStatus(nextStatus)) await clearOpenFollowUps(db, owner, leadId)
-  await addInteraction(db, owner, leadId, {
-    channel: options.channel ?? 'System',
-    outcome: options.outcome ?? 'Status changed',
-    note: options.note ?? `Status changed from "${statusLabel(existing.status)}" to "${statusLabel(nextStatus)}".`,
-    statusAfter: nextStatus,
-  })
+  if (options.recordInteraction !== false) {
+    await addInteraction(db, owner, leadId, {
+      channel: options.channel ?? 'System',
+      outcome: options.outcome ?? 'Status changed',
+      note: options.note ?? `Status changed from "${statusLabel(existing.status)}" to "${statusLabel(nextStatus)}".`,
+      statusAfter: nextStatus,
+    })
+  }
   await refreshPriority(db, owner, leadId)
 }
 

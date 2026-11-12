@@ -285,6 +285,7 @@ const SCHEMA = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS invoices_owner_number ON invoices(owner_sub, number)`,
   `CREATE INDEX IF NOT EXISTS invoices_owner_kind ON invoices(owner_sub, kind, issue_date DESC)`,
+  `CREATE INDEX IF NOT EXISTS interactions_call ON interactions(owner_sub, channel, interaction_date DESC)`,
 ]
 
 async function addColumnIfMissing(db: D1Database, table: string, column: string, definition: string) {
@@ -307,6 +308,31 @@ export function ensureSchema(db: D1Database): Promise<void> {
       await addColumnIfMissing(db, 'follow_ups', 'reschedule_reason', 'TEXT')
       await addColumnIfMissing(db, 'follow_ups', 'rescheduled_at', 'INTEGER')
       await addColumnIfMissing(db, 'follow_ups', 'rescheduled_count', 'INTEGER NOT NULL DEFAULT 0')
+
+      // Call details on the existing interaction timeline. These are additive
+      // so old workspaces keep every call note and simply gain a result.
+      await addColumnIfMissing(db, 'interactions', 'call_result', 'TEXT')
+      await addColumnIfMissing(db, 'interactions', 'contact_id', 'TEXT')
+      await addColumnIfMissing(db, 'interactions', 'contact_name', 'TEXT')
+      await addColumnIfMissing(db, 'interactions', 'phone_number', 'TEXT')
+      await db
+        .prepare(
+          `UPDATE interactions SET call_result = CASE
+             WHEN lower(COALESCE(outcome, '')) LIKE '%wrong number%' THEN 'Wrong number'
+             WHEN lower(COALESCE(outcome, '')) LIKE '%voicemail%' OR lower(COALESCE(outcome, '')) LIKE '%voice mail%' THEN 'Voicemail'
+             WHEN lower(COALESCE(outcome, '')) LIKE '%busy%' THEN 'Busy'
+             WHEN lower(COALESCE(outcome, '')) LIKE '%callback%' THEN 'Callback requested'
+             WHEN lower(COALESCE(outcome, '')) LIKE '%no answer%' OR lower(COALESCE(outcome, '')) LIKE '%not answer%'
+               OR lower(COALESCE(outcome, '')) LIKE '%no response%' OR lower(COALESCE(outcome, '')) LIKE '%not responding%'
+               OR lower(COALESCE(outcome, '')) LIKE '%not received%' OR lower(COALESCE(outcome, '')) LIKE '%unreachable%'
+               OR lower(COALESCE(outcome, '')) LIKE '%call attempted%' THEN 'No answer'
+             WHEN lower(COALESCE(outcome, '')) LIKE '%connect%' OR lower(COALESCE(outcome, '')) LIKE '%conversation%'
+               OR lower(COALESCE(outcome, '')) LIKE '%spoke%' THEN 'Connected'
+             ELSE 'Unknown'
+           END
+           WHERE channel = 'Call' AND call_result IS NULL`,
+        )
+        .run()
     })
     .then(
       () => undefined,

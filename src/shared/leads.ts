@@ -193,6 +193,11 @@ export const LOSS_REASONS = [
 export const OBJECTION_TYPES = ['Pricing', 'Existing system', 'Integration', 'Network/Internet', 'Needs management approval', 'No requirement', 'Other']
 
 export const CHANNELS = ['Call', 'WhatsApp', 'Meeting', 'Email'] as const
+export const CALL_RESULTS = ['Connected', 'No answer', 'Busy', 'Voicemail', 'Wrong number', 'Callback requested', 'Unknown'] as const
+export type CallResult = (typeof CALL_RESULTS)[number]
+export const NO_RESPONSE_CALL_RESULTS = ['No answer', 'Busy', 'Voicemail'] as const
+export const isCallResult = (value: unknown): value is CallResult =>
+  typeof value === 'string' && CALL_RESULTS.includes(value as CallResult)
 export const MEETING_TYPES = ['Call', 'Demo', 'Physical', 'Technical', 'Meeting'] as const
 export const MEETING_STATUSES = ['Scheduled', 'Done', 'Cancelled'] as const
 export const CONTACT_ROLES = ['Primary', 'Point of Contact'] as const

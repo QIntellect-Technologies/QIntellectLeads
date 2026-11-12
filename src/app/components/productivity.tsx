@@ -2,7 +2,7 @@ import { CalendarClock, CheckCircle2, Clock3, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { ApiError, api, useApiMutation } from '../lib/api'
-import { addDaysISO, CHANNELS, LEAD_SOURCES, LOSS_REASONS, PRODUCTS, todayISO } from '../../shared/leads'
+import { addDaysISO, CALL_RESULTS, CHANNELS, LEAD_SOURCES, LOSS_REASONS, PRODUCTS, todayISO } from '../../shared/leads'
 import { Button, Dialog, Field, Input, Select, Textarea, useToast } from './ui'
 
 type CompleteResult = 'next' | 'won' | 'lost' | 'postpone'
@@ -32,6 +32,7 @@ export function CompleteFollowUpDialog({
   const [result, setResult] = useState<CompleteResult>('next')
   const [channel, setChannel] = useState('Call')
   const [outcome, setOutcome] = useState('')
+  const [callResult, setCallResult] = useState('Connected')
   const [note, setNote] = useState('')
   const [nextDate, setNextDate] = useState(addDaysISO(2))
   const [nextTime, setNextTime] = useState('10:00')
@@ -45,6 +46,7 @@ export function CompleteFollowUpDialog({
       setResult('next')
       setChannel('Call')
       setOutcome('')
+      setCallResult('Connected')
       setNote('')
       setNextDate(addDaysISO(2))
       setNextTime('10:00')
@@ -57,7 +59,7 @@ export function CompleteFollowUpDialog({
 
   const complete = useApiMutation(
     () => {
-      const shared = { channel, outcome: outcome || null, note: note || null }
+      const shared = { channel, outcome: outcome || null, note: note || null, callResult: channel === 'Call' ? callResult : null }
       if (result === 'won' || result === 'lost') {
         return api(`/follow-ups/${followUpId}/complete`, {
           method: 'POST',
@@ -158,9 +160,19 @@ export function CompleteFollowUpDialog({
               ))}
             </Select>
           </Field>
-          <Field label="Outcome">
-            <Input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="No answer, demo booked..." />
-          </Field>
+          {channel === 'Call' ? (
+            <Field label="Call result">
+              <Select value={callResult} onChange={(e) => setCallResult(e.target.value)}>
+                {CALL_RESULTS.filter((result) => result !== 'Unknown').map((result) => (
+                  <option key={result}>{result}</option>
+                ))}
+              </Select>
+            </Field>
+          ) : (
+            <Field label="Outcome">
+              <Input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="No answer, demo booked..." />
+            </Field>
+          )}
         </div>
 
         {result !== 'won' && result !== 'lost' && (

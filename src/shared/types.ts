@@ -1,6 +1,6 @@
 // Types shared by the Worker (src/worker) and the app (src/app).
 
-import type { LeadStatusKey, PriorityLevel } from './leads'
+import type { CallResult, LeadStatusKey, PriorityLevel } from './leads'
 
 export type ContactStatus = 'lead' | 'active' | 'customer' | 'churned'
 export const CONTACT_STATUSES: ContactStatus[] = ['lead', 'active', 'customer', 'churned']
@@ -175,6 +175,10 @@ export interface LeadInteraction {
   note: string | null
   statusAfter: string | null
   createdAt: number
+  callResult?: CallResult | null
+  contactId?: string | null
+  contactName?: string | null
+  phoneNumber?: string | null
 }
 
 export interface LeadFollowUp {
@@ -269,6 +273,34 @@ export interface FollowUpRow {
 export interface MeetingRow {
   meeting: LeadMeeting
   lead: Pick<LeadListItem, 'id' | 'code' | 'contactName' | 'contactPhone' | 'orgName'>
+}
+
+export interface CallRow {
+  id: string
+  date: string
+  result: CallResult
+  contactId: string | null
+  contactName: string | null
+  phoneNumber: string | null
+  phoneInferred: boolean
+  note: string | null
+  outcome: string | null
+  lead: Pick<LeadListItem, 'id' | 'code' | 'contactName' | 'contactPhone' | 'orgName' | 'orgType' | 'status' | 'nextFollowUp'>
+}
+
+export interface CallsCounts {
+  calls: number
+  responded: number
+  noResponse: number
+  responseRate: number
+  callbacks: number
+  wrongNumber: number
+  unknown: number
+}
+
+export interface CallsData {
+  items: CallRow[]
+  counts: CallsCounts
 }
 
 export interface TodayData {

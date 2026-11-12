@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import type { Activity, Company, Contact, DataHealthData, DataSummary, Deal, FollowUpsData, ImportPreview, ImportResult, InvoiceRecord, InvoiceSettings, InvoicesData, LeadDetail, LeadListItem, LeadTemplate, Me, MeetingsData, NextActionsData, NotificationSettings, Overview, ReportsData, StoredFile, Task, TodayData } from '../../shared/types'
+import type { Activity, CallsData, Company, Contact, DataHealthData, DataSummary, Deal, FollowUpsData, ImportPreview, ImportResult, InvoiceRecord, InvoiceSettings, InvoicesData, LeadDetail, LeadListItem, LeadTemplate, Me, MeetingsData, NextActionsData, NotificationSettings, Overview, ReportsData, StoredFile, Task, TodayData } from '../../shared/types'
 
 export class ApiError extends Error {
   constructor(
@@ -128,6 +128,7 @@ const CROSS_PAGE_KEYS = [
   'today',
   'next-actions',
   'follow-ups',
+  'calls',
   'leads',
   'lead',
   'lead-search',
@@ -259,6 +260,20 @@ export const useMeetings = (query: { when?: string; q?: string; date?: string })
       if (query.q) params.set('q', query.q)
       if (query.date) params.set('date', query.date)
       return api<MeetingsData>(`/meetings?${params}`)
+    },
+    placeholderData: (previous) => previous,
+  })
+
+export const useCalls = (query: { when?: string; q?: string; date?: string; result?: string }) =>
+  useQuery({
+    queryKey: ['calls', query],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (query.when) params.set('when', query.when)
+      if (query.q) params.set('q', query.q)
+      if (query.date) params.set('date', query.date)
+      if (query.result) params.set('result', query.result)
+      return api<CallsData>(`/calls?${params}`)
     },
     placeholderData: (previous) => previous,
   })

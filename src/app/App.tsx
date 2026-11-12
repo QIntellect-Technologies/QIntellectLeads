@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { Shell } from './components/Shell'
 import { PageLoader, ToastProvider } from './components/ui'
 import { ApiError, useMe } from './lib/api'
+import { Calls } from './pages/Calls'
 import { DataHealth } from './pages/DataHealth'
 import { FollowUps } from './pages/FollowUps'
 import { ImportExport } from './pages/ImportExport'
@@ -49,6 +50,7 @@ function Gate() {
         <Route index element={<Today />} />
         <Route path="next-actions" element={<NextActions />} />
         <Route path="follow-ups" element={<FollowUps />} />
+        <Route path="calls" element={<Calls />} />
         <Route path="data-health" element={<DataHealth />} />
         <Route path="leads" element={<Leads />} />
         <Route path="leads/:id" element={<LeadDetail />} />

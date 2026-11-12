@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { ApiError, api, useApiMutation } from '../lib/api'
-import { addDaysISO, CHANNELS, CONTACT_ROLES, LEAD_SOURCES, LEAD_STATUSES, LOSS_REASONS, MEETING_STATUSES, MEETING_TYPES, OBJECTION_TYPES, ORG_TYPES, PRODUCTS, TEMPLATE_SEGMENTS, dmy } from '../../shared/leads'
+import { addDaysISO, CALL_RESULTS, CHANNELS, CONTACT_ROLES, LEAD_SOURCES, LEAD_STATUSES, LOSS_REASONS, MEETING_STATUSES, MEETING_TYPES, OBJECTION_TYPES, ORG_TYPES, PRODUCTS, TEMPLATE_SEGMENTS, dmy } from '../../shared/leads'
 import type { LeadContact, LeadDetail, LeadFollowUp, LeadMeeting, LeadTemplate } from '../../shared/types'
 import { Button, Checkbox, Dialog, Field, Input, Select, Textarea, useFieldId, useToast } from './ui'
 
@@ -276,6 +276,11 @@ export function LogInteractionDialog({
   const toast = useToast()
   const [channel, setChannel] = useState<string>('Call')
   const [outcome, setOutcome] = useState('')
+  const [callResult, setCallResult] = useState('Connected')
+  const [contactId, setContactId] = useState(lead.contacts[0]?.id ?? '')
+  const [contactName, setContactName] = useState(lead.contacts[0]?.fullName ?? '')
+  const [phoneNumber, setPhoneNumber] = useState(lead.contacts[0]?.phone ?? '')
+  const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const [status, setStatus] = useState(lead.lead.status)
   const [followUpDate, setFollowUpDate] = useState(addDaysISO(2))
@@ -286,6 +291,11 @@ export function LogInteractionDialog({
     if (open) {
       setChannel('Call')
       setOutcome('')
+      setCallResult('Connected')
+      setContactId(lead.contacts[0]?.id ?? '')
+      setContactName(lead.contacts[0]?.fullName ?? '')
+      setPhoneNumber(lead.contacts[0]?.phone ?? '')
+      setError(null)
       setNote('')
       setStatus(lead.lead.status)
       setFollowUpDate(addDaysISO(2))
@@ -301,13 +311,17 @@ export function LogInteractionDialog({
         method: 'POST',
         json: {
           channel,
-          outcome: outcome || null,
+          outcome: channel === 'Call' ? outcome || callResult : outcome || null,
           note: note || null,
           status,
           lossReason: status === 'lost' ? lossReason : null,
           nextFollowUpDate: closed ? null : followUpDate || null,
           nextFollowUpTime: closed ? null : followUpTime || null,
           followUpId: followUpId ?? null,
+          callResult: channel === 'Call' ? callResult : null,
+          contactId: channel === 'Call' ? contactId || null : null,
+          contactName: channel === 'Call' ? contactName || null : null,
+          phoneNumber: channel === 'Call' ? phoneNumber || null : null,
         },
       })
       return result
@@ -341,6 +355,8 @@ export function LogInteractionDialog({
         id="interaction-form"
         onSubmit={(e) => {
           e.preventDefault()
+          setError(null)
+          if (channel === 'Call' && !callResult) return setError('Choose a call result.')
           if (status === 'lost' && !lossReason) return
           log.mutate()
         }}
@@ -359,12 +375,54 @@ export function LogInteractionDialog({
               ))}
             </FieldSelect>
           </Field>
-          <Field label="Outcome">
-            <FieldInput value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="No answer, demo booked..." />
-          </Field>
+          {channel === 'Call' ? (
+            <Field label="Call result">
+              <FieldSelect value={callResult} onChange={(e) => setCallResult(e.target.value)}>
+                <option value="">Choose result</option>
+                {CALL_RESULTS.filter((result) => result !== 'Unknown').map((result) => (
+                  <option key={result}>{result}</option>
+                ))}
+              </FieldSelect>
+            </Field>
+          ) : (
+            <Field label="Outcome">
+              <FieldInput value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="No answer, demo booked..." />
+            </Field>
+          )}
         </div>
-        <Field label="What was discussed today?" hint="Saved with today's date and time">
-          <FieldTextarea required value={note} onChange={(e) => setNote(e.target.value)} placeholder="What did the client say? What was agreed?" />
+        {channel === 'Call' && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Person called">
+              <FieldSelect
+                value={contactId}
+                onChange={(e) => {
+                  const contact = lead.contacts.find((item) => item.id === e.target.value)
+                  setContactId(e.target.value)
+                  setContactName(contact?.fullName ?? '')
+                  setPhoneNumber(contact?.phone ?? '')
+                }}
+              >
+                <option value="">Other / not listed</option>
+                {lead.contacts.map((contact) => (
+                  <option key={contact.id} value={contact.id}>
+                    {contact.fullName}
+                    {contact.phone ? ` · ${contact.phone}` : ''}
+                  </option>
+                ))}
+              </FieldSelect>
+            </Field>
+            <Field label="Number called">
+              <FieldInput value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="0300 4561201" />
+            </Field>
+          </div>
+        )}
+        {channel === 'Call' && !contactId && (
+          <Field label="Person name" hint="Optional — who did you speak to?">
+            <FieldInput value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Name of the person on the call" />
+          </Field>
+        )}
+        <Field label="What was discussed today?" hint={channel === 'Call' ? 'Optional for a call' : "Saved with today's date and time"}>
+          <FieldTextarea required={channel !== 'Call'} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What did the client say? What was agreed?" />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Status after">
@@ -396,6 +454,7 @@ export function LogInteractionDialog({
           )}
         </div>
         {status === 'lost' && !lossReason && <p className="text-[12.5px] text-danger">Choose a loss reason before saving.</p>}
+        {error && <p className="text-[13px] text-danger">{error}</p>}
         {log.error && <p className="text-[13px] text-danger">{log.error.message}</p>}
       </form>
     </Dialog>
