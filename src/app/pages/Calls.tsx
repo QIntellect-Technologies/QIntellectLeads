@@ -1,8 +1,9 @@
-import { CheckCircle2, ChevronLeft, ChevronRight, Clock3, Percent, PhoneCall, PhoneOff, Search, X } from 'lucide-react'
+import { BookUser, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Pencil, Percent, PhoneCall, PhoneOff, Search, X } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 
 import { CallDialog } from '../components/call-form'
+import { EditCallDialog } from '../components/edit-call'
 import { WhatsAppButton } from '../components/lead-bits'
 import { Badge, Button, Card, EmptyState, Input, KpiCard, PageHeader, Select, Skeleton, TableProgress } from '../components/ui'
 import { useCalls } from '../lib/api'
@@ -21,14 +22,17 @@ const TABS = [
 
 export function Calls() {
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
   const [logOpen, setLogOpen] = useState(false)
   const [callLead, setCallLead] = useState<string | undefined>()
+  const [editing, setEditing] = useState<CallRow | null>(null)
   const when = params.get('when') ?? 'today'
   const date = params.get('date') ?? ''
   const q = params.get('q') ?? ''
   const result = params.get('result') ?? ''
+  const direction = params.get('direction') ?? ''
   const page = Math.max(0, Number(params.get('page') ?? 0))
-  const { data, isLoading, isFetching } = useCalls({ when, date, q, result })
+  const { data, isLoading, isFetching } = useCalls({ when, date, q, result, direction })
   const items = data?.items ?? []
   const counts = data?.counts
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE))
@@ -117,10 +121,16 @@ export function Calls() {
         title={title}
         subtitle={subtitle}
         actions={
-          <Button variant="primary" onClick={() => openLog()}>
-            <PhoneCall />
-            Log call
-          </Button>
+          <>
+            <Button onClick={() => navigate('/calls/directory')}>
+              <BookUser />
+              Number directory
+            </Button>
+            <Button variant="primary" onClick={() => openLog()}>
+              <PhoneCall />
+              Log call
+            </Button>
+          </>
         }
       />
 
@@ -177,7 +187,7 @@ export function Calls() {
         </div>
         <div>
           <span className="mb-1 block text-[11.5px] font-medium text-muted">Result</span>
-          <Select value={result} onChange={(e) => update({ result: e.target.value })} className="w-[176px]">
+          <Select value={result} onChange={(e) => update({ result: e.target.value })} className="w-[168px]">
             <option value="">All results</option>
             <option value="no_response">No response</option>
             {CALL_RESULTS.map((item) => (
@@ -185,6 +195,15 @@ export function Calls() {
                 {item}
               </option>
             ))}
+          </Select>
+        </div>
+        <div>
+          <span className="mb-1 block text-[11.5px] font-medium text-muted">Direction</span>
+          <Select value={direction} onChange={(e) => update({ direction: e.target.value })} className="w-[140px]">
+            <option value="">All directions</option>
+            <option value="Outbound">Outbound</option>
+            <option value="Inbound">Inbound</option>
+            <option value="Unknown">Unknown</option>
           </Select>
         </div>
         <div className="flex flex-wrap items-center gap-1 pb-px">
@@ -207,26 +226,27 @@ export function Calls() {
       <Card className="relative mt-4 animate-rise overflow-hidden" style={{ animationDelay: '100ms' }}>
         <TableProgress show={isFetching && !isLoading} />
         <div className="overflow-x-auto">
-          <table className="data-table w-full min-w-[1080px] table-fixed border-collapse text-left text-[13.5px]">
+          <table className="data-table w-full min-w-[1180px] table-fixed border-collapse text-left text-[13.5px]">
             <thead>
               <tr className="h-10 border-b border-line">
-                <th className="w-[12%] px-4 font-medium">Time</th>
-                <th className="w-[16%] px-4 font-medium">Number</th>
-                <th className="w-[15%] px-4 font-medium">Person</th>
-                <th className="w-[19%] px-4 font-medium">Lead / Company</th>
-                <th className="w-[12%] px-4 font-medium">Result</th>
-                <th className="w-[16%] px-4 font-medium">Notes</th>
-                <th className="w-[12%] px-4 font-medium">Next follow-up</th>
-                <th className="w-[8%] px-2" />
+                <th className="w-[11%] px-4 font-medium">Time</th>
+                <th className="w-[15%] px-4 font-medium">Number</th>
+                <th className="w-[14%] px-4 font-medium">Person</th>
+                <th className="w-[18%] px-4 font-medium">Lead / Company</th>
+                <th className="w-[9%] px-4 font-medium">Direction</th>
+                <th className="w-[11%] px-4 font-medium">Result</th>
+                <th className="w-[14%] px-4 font-medium">Notes</th>
+                <th className="w-[10%] px-4 font-medium">Next follow-up</th>
+                <th className="w-[10%] px-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {isLoading &&
                 Array.from({ length: 8 }).map((_, index) => (
                   <tr key={index} className="h-14">
-                    {Array.from({ length: 8 }).map((__, column) => (
+                    {Array.from({ length: 9 }).map((__, column) => (
                       <td key={column} className="px-4">
-                        <Skeleton className={cx('h-3.5', column === 0 ? 'w-3/4' : column === 7 ? 'ml-auto w-2/3' : 'w-full')} />
+                        <Skeleton className={cx('h-3.5', column === 0 ? 'w-3/4' : column === 8 ? 'ml-auto w-2/3' : 'w-full')} />
                       </td>
                     ))}
                   </tr>
@@ -237,6 +257,7 @@ export function Calls() {
                     key={call.id}
                     call={call}
                     onLog={() => openLog(call.lead.id)}
+                    onEdit={() => setEditing(call)}
                   />
                 ))}
             </tbody>
@@ -309,11 +330,12 @@ export function Calls() {
       )}
 
       <CallDialog open={logOpen} onClose={() => setLogOpen(false)} initialLeadId={callLead} />
+      <EditCallDialog call={editing} onClose={() => setEditing(null)} />
     </div>
   )
 }
 
-function CallTableRow({ call, onLog }: { call: CallRow; onLog: () => void }) {
+function CallTableRow({ call, onLog, onEdit }: { call: CallRow; onLog: () => void; onEdit: () => void }) {
   const phone = call.phoneNumber ?? call.lead.contactPhone
   const person = call.contactName ?? call.lead.contactName
   return (
@@ -341,6 +363,7 @@ function CallTableRow({ call, onLog }: { call: CallRow; onLog: () => void }) {
           {call.lead.code} · {call.lead.orgName ?? 'No organization'}
         </p>
       </td>
+      <td className="px-4 py-3 text-[12.5px] text-muted">{call.direction}</td>
       <td className="px-4 py-3">
         <Badge tone={resultTone(call.result)}>{call.result}</Badge>
       </td>
@@ -358,9 +381,14 @@ function CallTableRow({ call, onLog }: { call: CallRow; onLog: () => void }) {
         )}
       </td>
       <td className="px-2 py-3 text-right">
-        <Button variant="ghost" size="icon-sm" aria-label="Log another call" onClick={onLog}>
-          <PhoneCall />
-        </Button>
+        <div className="flex justify-end gap-0.5">
+          <Button variant="ghost" size="icon-sm" aria-label="Log another call" onClick={onLog}>
+            <PhoneCall />
+          </Button>
+          <Button variant="ghost" size="icon-sm" aria-label="Edit call" onClick={onEdit}>
+            <Pencil />
+          </Button>
+        </div>
       </td>
     </tr>
   )

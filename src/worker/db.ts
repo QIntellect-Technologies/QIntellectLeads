@@ -312,6 +312,7 @@ export function ensureSchema(db: D1Database): Promise<void> {
       // Call details on the existing interaction timeline. These are additive
       // so old workspaces keep every call note and simply gain a result.
       await addColumnIfMissing(db, 'interactions', 'call_result', 'TEXT')
+      await addColumnIfMissing(db, 'interactions', 'call_direction', 'TEXT')
       await addColumnIfMissing(db, 'interactions', 'contact_id', 'TEXT')
       await addColumnIfMissing(db, 'interactions', 'contact_name', 'TEXT')
       await addColumnIfMissing(db, 'interactions', 'phone_number', 'TEXT')

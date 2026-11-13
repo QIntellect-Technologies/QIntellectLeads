@@ -2,7 +2,7 @@ import { CalendarClock, CheckCircle2, Clock3, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { ApiError, api, useApiMutation } from '../lib/api'
-import { addDaysISO, CALL_RESULTS, CHANNELS, LEAD_SOURCES, LOSS_REASONS, PRODUCTS, todayISO } from '../../shared/leads'
+import { addDaysISO, CALL_DIRECTIONS, CALL_RESULTS, CHANNELS, LEAD_SOURCES, LOSS_REASONS, PRODUCTS, todayISO } from '../../shared/leads'
 import { Button, Dialog, Field, Input, Select, Textarea, useToast } from './ui'
 
 type CompleteResult = 'next' | 'won' | 'lost' | 'postpone'
@@ -33,6 +33,7 @@ export function CompleteFollowUpDialog({
   const [channel, setChannel] = useState('Call')
   const [outcome, setOutcome] = useState('')
   const [callResult, setCallResult] = useState('Connected')
+  const [direction, setDirection] = useState('Outbound')
   const [note, setNote] = useState('')
   const [nextDate, setNextDate] = useState(addDaysISO(2))
   const [nextTime, setNextTime] = useState('10:00')
@@ -47,6 +48,7 @@ export function CompleteFollowUpDialog({
       setChannel('Call')
       setOutcome('')
       setCallResult('Connected')
+      setDirection('Outbound')
       setNote('')
       setNextDate(addDaysISO(2))
       setNextTime('10:00')
@@ -59,7 +61,13 @@ export function CompleteFollowUpDialog({
 
   const complete = useApiMutation(
     () => {
-      const shared = { channel, outcome: outcome || null, note: note || null, callResult: channel === 'Call' ? callResult : null }
+      const shared = {
+        channel,
+        outcome: outcome || null,
+        note: note || null,
+        callResult: channel === 'Call' ? callResult : null,
+        callDirection: channel === 'Call' ? direction : null,
+      }
       if (result === 'won' || result === 'lost') {
         return api(`/follow-ups/${followUpId}/complete`, {
           method: 'POST',
@@ -174,6 +182,16 @@ export function CompleteFollowUpDialog({
             </Field>
           )}
         </div>
+
+        {channel === 'Call' && (
+          <Field label="Direction">
+            <Select value={direction} onChange={(e) => setDirection(e.target.value)}>
+              {CALL_DIRECTIONS.map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </Select>
+          </Field>
+        )}
 
         {result !== 'won' && result !== 'lost' && (
           <div className="grid grid-cols-2 gap-3">

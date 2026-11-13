@@ -6,7 +6,7 @@ import { id, now } from '../db'
 import type { AppContext } from '../env'
 import { LeadRuleError, addInteraction, applyStatusChange, asText, findDuplicateLeads, listLeads, normalizeStatusInput, refreshPriority } from '../lead-core'
 import { loadCadence } from '../settings'
-import { CHANNELS, MEETING_STATUSES, MEETING_TYPES, addDaysISO, isCallResult, isClosedStatus, normalizePhone, todayISO } from '../../shared/leads'
+import { CHANNELS, MEETING_STATUSES, MEETING_TYPES, addDaysISO, isCallDirection, isCallResult, isClosedStatus, normalizePhone, todayISO } from '../../shared/leads'
 import type { FollowUpRow, MeetingRow } from '../../shared/types'
 
 export const leadActivity = new Hono<AppContext>()
@@ -26,13 +26,14 @@ leadActivity.post('/leads/:id/interactions', async (c) => {
   const db = c.get('db')
   const owner = c.get('user').sub
   const leadId = c.req.param('id')
-  const input = await c.req.json<{ channel?: string; outcome?: string | null; note?: string | null; status?: string; lossReason?: string | null; nextFollowUpDate?: string | null; nextFollowUpTime?: string | null; followUpId?: string | null; callResult?: string | null; contactId?: string | null; contactName?: string | null; phoneNumber?: string | null }>()
+  const input = await c.req.json<{ channel?: string; outcome?: string | null; note?: string | null; status?: string; lossReason?: string | null; nextFollowUpDate?: string | null; nextFollowUpTime?: string | null; followUpId?: string | null; callResult?: string | null; callDirection?: string | null; contactId?: string | null; contactName?: string | null; phoneNumber?: string | null }>()
   if (!(await leadExists(db, owner, leadId))) return c.json({ error: 'Not found.' }, 404)
   const channel = CHANNELS.includes(input.channel as never) ? (input.channel as string) : null
   if (!channel) return c.json({ error: 'Choose a channel.' }, 400)
   const note = asText(input.note, 2000)
   const callResult = channel === 'Call' && isCallResult(input.callResult) && input.callResult !== 'Unknown' ? input.callResult : null
   if (channel === 'Call' && !callResult) return c.json({ error: 'Choose a call result.' }, 400)
+  const callDirection = channel === 'Call' ? (isCallDirection(input.callDirection) ? input.callDirection : 'Outbound') : null
   const outcome = asText(input.outcome, 200) ?? callResult
   if (!note && !outcome) return c.json({ error: 'Add a note or an outcome.' }, 400)
 
@@ -68,7 +69,7 @@ leadActivity.post('/leads/:id/interactions', async (c) => {
         await applyCadence(db, owner, leadId, 'proposal', todayISO(), cadence)
       }
     }
-    await addInteraction(db, owner, leadId, { channel, outcome, note, statusAfter: nextStatus ?? existing.status, callResult, contactId, contactName, phoneNumber })
+    await addInteraction(db, owner, leadId, { channel, outcome, note, statusAfter: nextStatus ?? existing.status, callResult, callDirection, contactId, contactName, phoneNumber })
 
     const closed = isClosedStatus((nextStatus ?? existing.status) as never)
     let followUpId: string | null = null
@@ -233,11 +234,13 @@ leadActivity.post('/follow-ups/:id/complete', async (c) => {
     postponeTo?: string | null
     postponeReason?: string | null
     callResult?: string | null
+    callDirection?: string | null
   }>()
   const leadId = existing.lead_id as string
   const today = todayISO()
   const channel = CHANNELS.includes(input.channel as never) ? (input.channel as string) : 'Call'
   const callResult = channel === 'Call' && isCallResult(input.callResult) && input.callResult !== 'Unknown' ? input.callResult : null
+  const callDirection = channel === 'Call' ? (isCallDirection(input.callDirection) ? input.callDirection : 'Outbound') : null
 
   // Postponing is a reschedule with a reason, not a completed touch.
   if (input.postponeTo) {
@@ -257,6 +260,7 @@ leadActivity.post('/follow-ups/:id/complete', async (c) => {
       outcome: 'Follow-up postponed',
       note: asText(input.note, 2000) ?? `Postponed to ${input.postponeTo}: ${reason}`,
       callResult,
+      callDirection,
     })
     await refreshPriority(db, owner, leadId)
     return privateJson(c, { ok: true, postponedTo: input.postponeTo })
@@ -303,6 +307,7 @@ leadActivity.post('/follow-ups/:id/complete', async (c) => {
     note: noteParts.length ? noteParts.join(' · ') : null,
     statusAfter: closing ? input.status : null,
     callResult,
+    callDirection,
   })
 
   let nextFollowUpId: string | null = null

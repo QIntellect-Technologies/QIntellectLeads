@@ -161,6 +161,7 @@ const mapInteraction = (r: Row): LeadInteraction => {
     statusAfter,
     createdAt: Number(r.created_at ?? 0),
     callResult: (r.call_result as LeadInteraction['callResult']) ?? null,
+    callDirection: (r.call_direction as LeadInteraction['callDirection']) ?? null,
     contactId: (r.contact_id as string | null) ?? null,
     contactName: (r.contact_name as string | null) ?? null,
     phoneNumber: (r.phone_number as string | null) ?? null,
@@ -365,6 +366,7 @@ export async function addInteraction(
     statusAfter?: string | null
     date?: string
     callResult?: string | null
+    callDirection?: string | null
     contactId?: string | null
     contactName?: string | null
     phoneNumber?: string | null
@@ -374,8 +376,8 @@ export async function addInteraction(
   const date = input.date ?? new Date().toISOString()
   await db
     .prepare(
-      `INSERT INTO interactions (id, owner_sub, lead_id, interaction_date, channel, outcome, note, status_after, call_result, contact_id, contact_name, phone_number, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO interactions (id, owner_sub, lead_id, interaction_date, channel, outcome, note, status_after, call_result, call_direction, contact_id, contact_name, phone_number, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       interactionId,
@@ -387,6 +389,7 @@ export async function addInteraction(
       input.note ?? null,
       input.statusAfter ?? null,
       input.callResult ?? null,
+      input.callDirection ?? null,
       input.contactId ?? null,
       input.contactName ?? null,
       input.phoneNumber ?? null,

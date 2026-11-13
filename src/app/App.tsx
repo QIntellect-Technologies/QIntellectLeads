@@ -13,6 +13,7 @@ import { LeadDetail } from './pages/LeadDetail'
 import { Leads } from './pages/Leads'
 import { Meetings } from './pages/Meetings'
 import { NextActions } from './pages/NextActions'
+import { NumberDirectory } from './pages/NumberDirectory'
 import { Pipeline } from './pages/Pipeline'
 import { Reports } from './pages/Reports'
 import { Settings } from './pages/Settings'
@@ -51,6 +52,7 @@ function Gate() {
         <Route path="next-actions" element={<NextActions />} />
         <Route path="follow-ups" element={<FollowUps />} />
         <Route path="calls" element={<Calls />} />
+        <Route path="calls/directory" element={<NumberDirectory />} />
         <Route path="data-health" element={<DataHealth />} />
         <Route path="leads" element={<Leads />} />
         <Route path="leads/:id" element={<LeadDetail />} />

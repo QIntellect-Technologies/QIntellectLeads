@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { ApiError, api, useApiMutation } from '../lib/api'
-import { addDaysISO, CALL_RESULTS, CHANNELS, CONTACT_ROLES, LEAD_SOURCES, LEAD_STATUSES, LOSS_REASONS, MEETING_STATUSES, MEETING_TYPES, OBJECTION_TYPES, ORG_TYPES, PRODUCTS, TEMPLATE_SEGMENTS, dmy } from '../../shared/leads'
+import { addDaysISO, CALL_DIRECTIONS, CALL_RESULTS, CHANNELS, CONTACT_ROLES, LEAD_SOURCES, LEAD_STATUSES, LOSS_REASONS, MEETING_STATUSES, MEETING_TYPES, OBJECTION_TYPES, ORG_TYPES, PRODUCTS, TEMPLATE_SEGMENTS, dmy } from '../../shared/leads'
 import type { LeadContact, LeadDetail, LeadFollowUp, LeadMeeting, LeadTemplate } from '../../shared/types'
 import { Button, Checkbox, Dialog, Field, Input, Select, Textarea, useFieldId, useToast } from './ui'
 
@@ -277,6 +277,7 @@ export function LogInteractionDialog({
   const [channel, setChannel] = useState<string>('Call')
   const [outcome, setOutcome] = useState('')
   const [callResult, setCallResult] = useState('Connected')
+  const [direction, setDirection] = useState('Outbound')
   const [contactId, setContactId] = useState(lead.contacts[0]?.id ?? '')
   const [contactName, setContactName] = useState(lead.contacts[0]?.fullName ?? '')
   const [phoneNumber, setPhoneNumber] = useState(lead.contacts[0]?.phone ?? '')
@@ -292,6 +293,7 @@ export function LogInteractionDialog({
       setChannel('Call')
       setOutcome('')
       setCallResult('Connected')
+      setDirection('Outbound')
       setContactId(lead.contacts[0]?.id ?? '')
       setContactName(lead.contacts[0]?.fullName ?? '')
       setPhoneNumber(lead.contacts[0]?.phone ?? '')
@@ -319,6 +321,7 @@ export function LogInteractionDialog({
           nextFollowUpTime: closed ? null : followUpTime || null,
           followUpId: followUpId ?? null,
           callResult: channel === 'Call' ? callResult : null,
+          callDirection: channel === 'Call' ? direction : null,
           contactId: channel === 'Call' ? contactId || null : null,
           contactName: channel === 'Call' ? contactName || null : null,
           phoneNumber: channel === 'Call' ? phoneNumber || null : null,
@@ -391,7 +394,7 @@ export function LogInteractionDialog({
           )}
         </div>
         {channel === 'Call' && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Field label="Person called">
               <FieldSelect
                 value={contactId}
@@ -413,6 +416,13 @@ export function LogInteractionDialog({
             </Field>
             <Field label="Number called">
               <FieldInput value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="0300 4561201" />
+            </Field>
+            <Field label="Direction">
+              <FieldSelect value={direction} onChange={(e) => setDirection(e.target.value)}>
+                {CALL_DIRECTIONS.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </FieldSelect>
             </Field>
           </div>
         )}

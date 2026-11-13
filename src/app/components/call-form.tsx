@@ -2,7 +2,7 @@ import { PhoneCall, Search, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { api, useApiMutation, useLead, useLeadSearch } from '../lib/api'
-import { addDaysISO, CALL_RESULTS, todayISO } from '../../shared/leads'
+import { addDaysISO, CALL_DIRECTIONS, CALL_RESULTS, todayISO } from '../../shared/leads'
 import { Button, Dialog, Field, Input, Select, Textarea, useToast } from './ui'
 
 const invalidates = ['calls', 'call', 'lead', 'leads', 'today', 'next-actions', 'follow-ups', 'reports', 'meetings', 'data-summary', 'data-health']
@@ -15,10 +15,12 @@ export function CallDialog({
   open,
   onClose,
   initialLeadId,
+  initialContactId,
 }: {
   open: boolean
   onClose: () => void
   initialLeadId?: string
+  initialContactId?: string
 }) {
   const toast = useToast()
   const [leadId, setLeadId] = useState(initialLeadId ?? '')
@@ -27,6 +29,7 @@ export function CallDialog({
   const [contactName, setContactName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [result, setResult] = useState('')
+  const [direction, setDirection] = useState('Outbound')
   const [note, setNote] = useState('')
   const [followUpDate, setFollowUpDate] = useState(addDaysISO(2))
   const [followUpTime, setFollowUpTime] = useState('10:00')
@@ -46,6 +49,7 @@ export function CallDialog({
     setContactName('')
     setPhoneNumber('')
     setResult('')
+    setDirection('Outbound')
     setNote('')
     setFollowUpDate(addDaysISO(2))
     setFollowUpTime('10:00')
@@ -54,11 +58,13 @@ export function CallDialog({
 
   useEffect(() => {
     if (!open || !detail.data) return
-    const primary = detail.data.contacts[0]
-    setContactId(primary?.id ?? '')
-    setContactName(primary?.fullName ?? '')
-    setPhoneNumber(primary?.phone ?? '')
-  }, [open, detail.data?.lead.id])
+    const preferred = initialContactId
+      ? detail.data.contacts.find((contact) => contact.id === initialContactId)
+      : detail.data.contacts[0]
+    setContactId(preferred?.id ?? '')
+    setContactName(preferred?.fullName ?? '')
+    setPhoneNumber(preferred?.phone ?? '')
+  }, [open, detail.data?.lead.id, initialContactId])
 
   function pickLead(id: string) {
     setLeadId(id)
@@ -76,6 +82,7 @@ export function CallDialog({
         json: {
           channel: 'Call',
           callResult: result,
+          callDirection: direction,
           contactId: contactId || null,
           contactName: contactName.trim() || null,
           phoneNumber: phoneNumber.trim() || null,
@@ -192,7 +199,7 @@ export function CallDialog({
 
         {leadId && (
           <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Field label="Person called">
                 <Select
                   value={contactId}
@@ -214,6 +221,13 @@ export function CallDialog({
               </Field>
               <Field label="Number called">
                 <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="0300 4561201" />
+              </Field>
+              <Field label="Direction">
+                <Select value={direction} onChange={(e) => setDirection(e.target.value)}>
+                  {CALL_DIRECTIONS.map((item) => (
+                    <option key={item}>{item}</option>
+                  ))}
+                </Select>
               </Field>
             </div>
 

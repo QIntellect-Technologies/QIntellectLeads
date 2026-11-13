@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import type { Activity, CallsData, Company, Contact, DataHealthData, DataSummary, Deal, FollowUpsData, ImportPreview, ImportResult, InvoiceRecord, InvoiceSettings, InvoicesData, LeadDetail, LeadListItem, LeadTemplate, Me, MeetingsData, NextActionsData, NotificationSettings, Overview, ReportsData, StoredFile, Task, TodayData } from '../../shared/types'
+import type { Activity, CallsData, Company, Contact, DataHealthData, DataSummary, Deal, DirectoryData, FollowUpsData, ImportPreview, ImportResult, InvoiceRecord, InvoiceSettings, InvoicesData, LeadDetail, LeadListItem, LeadTemplate, Me, MeetingsData, NextActionsData, NotificationSettings, Overview, ReportsData, StoredFile, Task, TodayData } from '../../shared/types'
 
 export class ApiError extends Error {
   constructor(
@@ -129,6 +129,7 @@ const CROSS_PAGE_KEYS = [
   'next-actions',
   'follow-ups',
   'calls',
+  'number-directory',
   'leads',
   'lead',
   'lead-search',
@@ -264,7 +265,7 @@ export const useMeetings = (query: { when?: string; q?: string; date?: string })
     placeholderData: (previous) => previous,
   })
 
-export const useCalls = (query: { when?: string; q?: string; date?: string; result?: string }) =>
+export const useCalls = (query: { when?: string; q?: string; date?: string; result?: string; direction?: string }) =>
   useQuery({
     queryKey: ['calls', query],
     queryFn: () => {
@@ -273,8 +274,16 @@ export const useCalls = (query: { when?: string; q?: string; date?: string; resu
       if (query.q) params.set('q', query.q)
       if (query.date) params.set('date', query.date)
       if (query.result) params.set('result', query.result)
+      if (query.direction) params.set('direction', query.direction)
       return api<CallsData>(`/calls?${params}`)
     },
+    placeholderData: (previous) => previous,
+  })
+
+export const useNumberDirectory = (q = '') =>
+  useQuery({
+    queryKey: ['number-directory', q],
+    queryFn: () => api<DirectoryData>(`/calls/directory?q=${encodeURIComponent(q)}`),
     placeholderData: (previous) => previous,
   })
 

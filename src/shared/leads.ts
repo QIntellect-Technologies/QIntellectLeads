@@ -195,6 +195,10 @@ export const OBJECTION_TYPES = ['Pricing', 'Existing system', 'Integration', 'Ne
 export const CHANNELS = ['Call', 'WhatsApp', 'Meeting', 'Email'] as const
 export const CALL_RESULTS = ['Connected', 'No answer', 'Busy', 'Voicemail', 'Wrong number', 'Callback requested', 'Unknown'] as const
 export type CallResult = (typeof CALL_RESULTS)[number]
+export const CALL_DIRECTIONS = ['Outbound', 'Inbound'] as const
+export type CallDirection = (typeof CALL_DIRECTIONS)[number]
+export const isCallDirection = (value: unknown): value is CallDirection =>
+  typeof value === 'string' && CALL_DIRECTIONS.includes(value as CallDirection)
 export const NO_RESPONSE_CALL_RESULTS = ['No answer', 'Busy', 'Voicemail'] as const
 export const isCallResult = (value: unknown): value is CallResult =>
   typeof value === 'string' && CALL_RESULTS.includes(value as CallResult)

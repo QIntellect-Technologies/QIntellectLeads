@@ -1,6 +1,6 @@
 // Types shared by the Worker (src/worker) and the app (src/app).
 
-import type { CallResult, LeadStatusKey, PriorityLevel } from './leads'
+import type { CallDirection, CallResult, LeadStatusKey, PriorityLevel } from './leads'
 
 export type ContactStatus = 'lead' | 'active' | 'customer' | 'churned'
 export const CONTACT_STATUSES: ContactStatus[] = ['lead', 'active', 'customer', 'churned']
@@ -176,6 +176,7 @@ export interface LeadInteraction {
   statusAfter: string | null
   createdAt: number
   callResult?: CallResult | null
+  callDirection?: CallDirection | null
   contactId?: string | null
   contactName?: string | null
   phoneNumber?: string | null
@@ -279,6 +280,7 @@ export interface CallRow {
   id: string
   date: string
   result: CallResult
+  direction: CallDirection | 'Unknown'
   contactId: string | null
   contactName: string | null
   phoneNumber: string | null
@@ -286,6 +288,19 @@ export interface CallRow {
   note: string | null
   outcome: string | null
   lead: Pick<LeadListItem, 'id' | 'code' | 'contactName' | 'contactPhone' | 'orgName' | 'orgType' | 'status' | 'nextFollowUp'>
+}
+
+export interface DirectoryRow {
+  id: string
+  personName: string
+  phone: string
+  designation: string | null
+  role: 'Primary' | 'Point of Contact'
+  lead: Pick<LeadListItem, 'id' | 'code' | 'orgName' | 'orgType' | 'status'>
+}
+
+export interface DirectoryData {
+  items: DirectoryRow[]
 }
 
 export interface CallsCounts {
