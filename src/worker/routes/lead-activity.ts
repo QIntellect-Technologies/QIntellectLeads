@@ -413,7 +413,7 @@ leadActivity.get('/follow-ups', async (c) => {
     pending: open.length,
     overdue: open.filter((row) => row.followUp.dueDate < today).length,
     today: open.filter((row) => row.followUp.dueDate === today).length,
-    yesterday: open.filter((row) => row.followUp.dueDate === yesterday).length,
+    yesterday: all.filter((row) => row.followUp.dueDate === yesterday).length,
     tomorrow: open.filter((row) => row.followUp.dueDate === tomorrow).length,
     upcoming: open.filter((row) => row.followUp.dueDate > today).length,
     previous: all.filter((row) => row.followUp.dueDate < today).length,
@@ -425,7 +425,7 @@ leadActivity.get('/follow-ups', async (c) => {
   else if (when === 'pending') items = open
   else if (when === 'overdue') items = open.filter((row) => row.followUp.dueDate < today)
   else if (when === 'today') items = open.filter((row) => row.followUp.dueDate === today)
-  else if (when === 'yesterday') items = open.filter((row) => row.followUp.dueDate === yesterday)
+  else if (when === 'yesterday') items = all.filter((row) => row.followUp.dueDate === yesterday)
   else if (when === 'tomorrow') items = open.filter((row) => row.followUp.dueDate === tomorrow)
   else if (when === 'upcoming') items = open.filter((row) => row.followUp.dueDate > today)
   else if (when === 'previous') items = all.filter((row) => row.followUp.dueDate < today)
