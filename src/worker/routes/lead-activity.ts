@@ -412,10 +412,10 @@ leadActivity.get('/follow-ups', async (c) => {
     total: all.length,
     pending: open.length,
     overdue: open.filter((row) => row.followUp.dueDate < today).length,
-    today: open.filter((row) => row.followUp.dueDate === today).length,
+    today: all.filter((row) => row.followUp.dueDate === today).length,
     yesterday: all.filter((row) => row.followUp.dueDate === yesterday).length,
-    tomorrow: open.filter((row) => row.followUp.dueDate === tomorrow).length,
-    upcoming: open.filter((row) => row.followUp.dueDate > today).length,
+    tomorrow: all.filter((row) => row.followUp.dueDate === tomorrow).length,
+    upcoming: all.filter((row) => row.followUp.dueDate > tomorrow).length,
     previous: all.filter((row) => row.followUp.dueDate < today).length,
     completed: all.length - open.length,
   }
@@ -424,10 +424,10 @@ leadActivity.get('/follow-ups', async (c) => {
   if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) items = all.filter((row) => row.followUp.dueDate === date)
   else if (when === 'pending') items = open
   else if (when === 'overdue') items = open.filter((row) => row.followUp.dueDate < today)
-  else if (when === 'today') items = open.filter((row) => row.followUp.dueDate === today)
+  else if (when === 'today') items = all.filter((row) => row.followUp.dueDate === today)
   else if (when === 'yesterday') items = all.filter((row) => row.followUp.dueDate === yesterday)
-  else if (when === 'tomorrow') items = open.filter((row) => row.followUp.dueDate === tomorrow)
-  else if (when === 'upcoming') items = open.filter((row) => row.followUp.dueDate > today)
+  else if (when === 'tomorrow') items = all.filter((row) => row.followUp.dueDate === tomorrow)
+  else if (when === 'upcoming') items = all.filter((row) => row.followUp.dueDate > tomorrow)
   else if (when === 'previous') items = all.filter((row) => row.followUp.dueDate < today)
   else if (when === 'completed') items = all.filter((row) => row.followUp.completed)
 

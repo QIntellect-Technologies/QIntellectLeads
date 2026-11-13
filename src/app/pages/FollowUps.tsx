@@ -77,12 +77,12 @@ export function FollowUps() {
     ? 'Every follow-up due on the selected date, including completed ones.'
     : {
         pending: 'Every follow-up that is still open, past or future.',
-        today: 'Calls and messages due today.',
+        today: 'Every follow-up due today, open or completed.',
         yesterday: 'Every follow-up that was due yesterday, open or completed.',
-        tomorrow: 'Follow-ups scheduled for tomorrow.',
+        tomorrow: 'Every follow-up due tomorrow, open or completed.',
         previous: 'Every follow-up whose date has already passed, open or completed.',
         overdue: 'Every open follow-up whose date has passed.',
-        upcoming: 'Open follow-ups from tomorrow onwards.',
+        upcoming: 'Every follow-up due after tomorrow, open or completed.',
         completed: 'Follow-ups your team has already completed.',
         all: 'Every follow-up, open and completed.',
       }[when] ?? 'Every follow-up, open and completed.'
