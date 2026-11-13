@@ -323,39 +323,3 @@ callingList.post('/calling-list/:id/convert', async (c) => {
 
   return privateJson(c, { leadId, code, existing: duplicates.length > 0 })
 })
-
-// One-time bulk load for the company sheets. Rows always belong to the
-// signed-in workspace, and the unique phone index makes retries harmless.
-callingList.post('/calling-list/import', async (c) => {
-  const db = c.get('db')
-  const owner = c.get('user').sub
-  const body = (await c.req.json().catch(() => null)) as { rows?: unknown[] } | null
-  const rows = Array.isArray(body?.rows) ? body.rows : []
-  if (!rows.length) return c.json({ error: 'No rows supplied.' }, 400)
-
-  const t = now()
-  const statements: ReturnType<typeof db.prepare>[] = []
-  for (const entry of rows) {
-    const row = entry as Row
-    const phone = typeof row.phone === 'string' ? row.phone.trim() : ''
-    const key = phone.replace(/\D/g, '').slice(-10)
-    if (!phone || key.length < 9) continue
-    const value = (field: string) => (typeof row[field] === 'string' && row[field] ? (row[field] as string) : null)
-    statements.push(
-      db
-        .prepare(
-          `INSERT OR IGNORE INTO outreach_contacts
-             (id, owner_sub, phone, phone_key, person_name, company_name, designation, city, address, email, source_list, status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Not called', ?, ?)`,
-        )
-        .bind(id(), owner, phone, key, value('person'), value('company'), value('designation'), value('city'), value('address'), value('email'), value('source') ?? 'Imported', t, t),
-    )
-  }
-
-  let inserted = 0
-  for (let start = 0; start < statements.length; start += 50) {
-    const results = await db.batch(statements.slice(start, start + 50))
-    for (const result of results) inserted += result.meta.changes ?? 0
-  }
-  return privateJson(c, { received: rows.length, inserted })
-})
