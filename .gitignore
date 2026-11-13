@@ -10,5 +10,6 @@ dist
 .freebuff
 # Real customer/lead data must stay local.
 QT-Leads-WhatsAPP.xlsx
+Contacts.xlsx
 .DS_Store
 *.log

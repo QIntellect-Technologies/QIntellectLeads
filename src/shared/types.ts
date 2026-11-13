@@ -662,3 +662,60 @@ export interface InvoicesData {
   counts: { all: number; invoices: number; quotations: number; paid: number; outstanding: number }
 }
 
+// Calling list ---------------------------------------------------------------
+
+export interface OutreachContact {
+  id: string
+  phone: string
+  personName: string | null
+  companyName: string | null
+  designation: string | null
+  city: string | null
+  address: string | null
+  email: string | null
+  sourceList: string
+  status: string
+  lastResult: string | null
+  lastCalledAt: number | null
+  notes: string | null
+  convertedLeadId: string | null
+  convertedLeadCode: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+export interface OutreachCall {
+  id: string
+  contactId: string
+  calledAt: number
+  result: CallResult
+  direction: CallDirection | null
+  note: string | null
+  createdAt: number
+}
+
+export interface CallingListCounts {
+  total: number
+  notCalled: number
+  called: number
+  interested: number
+  notInterested: number
+  converted: number
+  wrongNumber: number
+  callback: number
+}
+
+export interface CallingListData {
+  items: OutreachContact[]
+  total: number
+  page: number
+  pageSize: number
+  counts: CallingListCounts
+  sources: { source: string; count: number }[]
+}
+
+export interface CallingListDetail {
+  contact: OutreachContact
+  calls: OutreachCall[]
+}
+

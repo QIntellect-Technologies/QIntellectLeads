@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import type { Activity, CallsData, Company, Contact, DataHealthData, DataSummary, Deal, DirectoryData, FollowUpsData, ImportPreview, ImportResult, InvoiceRecord, InvoiceSettings, InvoicesData, LeadDetail, LeadListItem, LeadTemplate, Me, MeetingsData, NextActionsData, NotificationSettings, Overview, ReportsData, StoredFile, Task, TodayData } from '../../shared/types'
+import type { Activity, CallingListData, CallingListDetail, CallsData, Company, Contact, DataHealthData, DataSummary, Deal, DirectoryData, FollowUpsData, ImportPreview, ImportResult, InvoiceRecord, InvoiceSettings, InvoicesData, LeadDetail, LeadListItem, LeadTemplate, Me, MeetingsData, NextActionsData, NotificationSettings, Overview, ReportsData, StoredFile, Task, TodayData } from '../../shared/types'
 
 export class ApiError extends Error {
   constructor(
@@ -129,6 +129,8 @@ const CROSS_PAGE_KEYS = [
   'next-actions',
   'follow-ups',
   'calls',
+  'calling-list',
+  'calling-list-item',
   'number-directory',
   'leads',
   'lead',
@@ -278,6 +280,34 @@ export const useCalls = (query: { when?: string; q?: string; date?: string; resu
       return api<CallsData>(`/calls?${params}`)
     },
     placeholderData: (previous) => previous,
+  })
+
+export interface CallingListQuery {
+  q?: string
+  status?: string
+  source?: string
+  page?: number
+}
+
+export const useCallingList = (query: CallingListQuery) =>
+  useQuery({
+    queryKey: ['calling-list', query],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (query.q) params.set('q', query.q)
+      if (query.status) params.set('status', query.status)
+      if (query.source) params.set('source', query.source)
+      if (query.page) params.set('page', String(query.page))
+      return api<CallingListData>(`/calling-list?${params}`)
+    },
+    placeholderData: (previous) => previous,
+  })
+
+export const useCallingListContact = (id: string | null) =>
+  useQuery({
+    queryKey: ['calling-list-item', id],
+    queryFn: () => api<CallingListDetail>(`/calling-list/${id}`),
+    enabled: Boolean(id),
   })
 
 export const useNumberDirectory = (q = '') =>

@@ -286,6 +286,46 @@ const SCHEMA = [
   `CREATE UNIQUE INDEX IF NOT EXISTS invoices_owner_number ON invoices(owner_sub, number)`,
   `CREATE INDEX IF NOT EXISTS invoices_owner_kind ON invoices(owner_sub, kind, issue_date DESC)`,
   `CREATE INDEX IF NOT EXISTS interactions_call ON interactions(owner_sub, channel, interaction_date DESC)`,
+
+  // --- Calling list --------------------------------------------------------
+  // Number-first outreach list imported from the company workbook. It stays
+  // separate from leads until someone converts a number, so the two datasets
+  // can grow independently. `phone_key` is the last 10 digits, which is how
+  // duplicates are found across every source sheet.
+  `CREATE TABLE IF NOT EXISTS outreach_contacts (
+    id TEXT PRIMARY KEY,
+    owner_sub TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    phone_key TEXT NOT NULL,
+    person_name TEXT,
+    company_name TEXT,
+    designation TEXT,
+    city TEXT,
+    address TEXT,
+    email TEXT,
+    source_list TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Not called',
+    last_result TEXT,
+    last_called_at INTEGER,
+    notes TEXT,
+    converted_lead_id TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS outreach_contacts_owner_phone ON outreach_contacts(owner_sub, phone_key)`,
+  `CREATE INDEX IF NOT EXISTS outreach_contacts_owner_status ON outreach_contacts(owner_sub, status, company_name)`,
+  `CREATE INDEX IF NOT EXISTS outreach_contacts_owner_source ON outreach_contacts(owner_sub, source_list)`,
+  `CREATE TABLE IF NOT EXISTS outreach_calls (
+    id TEXT PRIMARY KEY,
+    owner_sub TEXT NOT NULL,
+    contact_id TEXT NOT NULL,
+    called_at INTEGER NOT NULL,
+    result TEXT NOT NULL,
+    direction TEXT,
+    note TEXT,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS outreach_calls_contact ON outreach_calls(owner_sub, contact_id, called_at DESC)`,
 ]
 
 async function addColumnIfMissing(db: D1Database, table: string, column: string, definition: string) {

@@ -1,4 +1,4 @@
-import { AlarmClock, CalendarClock, Handshake, LayoutGrid, ListChecks, LogOut, Menu as MenuIcon, MessageSquare, PhoneCall, ReceiptText, Search, Settings, ShieldCheck, TrendingUp, Upload, Users, X } from 'lucide-react'
+import { AlarmClock, CalendarClock, Handshake, LayoutGrid, ListChecks, LogOut, Menu as MenuIcon, MessageSquare, Phone, PhoneCall, ReceiptText, Search, Settings, ShieldCheck, TrendingUp, Upload, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 
@@ -12,6 +12,7 @@ const links = [
   { to: '/next-actions', label: 'Next actions', icon: ListChecks },
   { to: '/follow-ups', label: 'Follow-ups', icon: AlarmClock },
   { to: '/calls', label: 'Calls', icon: PhoneCall },
+  { to: '/calling-list', label: 'Calling list', icon: Phone },
   { to: '/leads', label: 'Leads', icon: Users },
   { to: '/pipeline', label: 'Pipeline', icon: Handshake },
   { to: '/meetings', label: 'Meetings', icon: CalendarClock },

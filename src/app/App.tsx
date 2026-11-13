@@ -5,6 +5,7 @@ import { Shell } from './components/Shell'
 import { PageLoader, ToastProvider } from './components/ui'
 import { ApiError, useMe } from './lib/api'
 import { Calls } from './pages/Calls'
+import { CallingList } from './pages/CallingList'
 import { DataHealth } from './pages/DataHealth'
 import { FollowUps } from './pages/FollowUps'
 import { ImportExport } from './pages/ImportExport'
@@ -53,6 +54,7 @@ function Gate() {
         <Route path="follow-ups" element={<FollowUps />} />
         <Route path="calls" element={<Calls />} />
         <Route path="calls/directory" element={<NumberDirectory />} />
+        <Route path="calling-list" element={<CallingList />} />
         <Route path="data-health" element={<DataHealth />} />
         <Route path="leads" element={<Leads />} />
         <Route path="leads/:id" element={<LeadDetail />} />

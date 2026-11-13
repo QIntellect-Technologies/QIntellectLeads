@@ -9,6 +9,7 @@ import { companies } from './routes/companies'
 import { contacts } from './routes/contacts'
 import { deals } from './routes/deals'
 import { calls } from './routes/calls'
+import { callingList } from './routes/calling-list'
 import { files } from './routes/files'
 import { insights } from './routes/insights'
 import { invoices } from './routes/invoices'
@@ -44,6 +45,7 @@ api.route('/', productivity)
 api.route('/', notifications)
 api.route('/', invoices)
 api.route('/', calls)
+api.route('/', callingList)
 api.route('/templates', templates)
 api.route('/leads', leads)
 api.route('/', leadActivity)
