@@ -324,6 +324,16 @@ export interface DuplicateLead {
 }
 
 /** Same person under a different number: compare the last 10 digits. */
+// One open follow-up per lead per day: completing or logging a call schedules the
+// next step, and without this guard the same lead lands on the board twice.
+export async function findOpenFollowUpOn(db: D1Database, owner: string, leadId: string, dueDate: string): Promise<string | null> {
+  const row = await db
+    .prepare(`SELECT id FROM follow_ups WHERE owner_sub = ? AND lead_id = ? AND is_completed = 0 AND due_date = ? LIMIT 1`)
+    .bind(owner, leadId, dueDate)
+    .first<{ id: string }>()
+  return (row?.id as string | undefined) ?? null
+}
+
 export async function findDuplicateLeads(db: D1Database, owner: string, phone: string, excludeLeadId?: string): Promise<DuplicateLead[]> {
   const key = phoneKey(phone)
   if (key.length < 7) return []

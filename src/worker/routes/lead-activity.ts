@@ -4,7 +4,7 @@ import { privateJson } from '../auth'
 import { applyCadence } from '../cadence'
 import { id, now } from '../db'
 import type { AppContext } from '../env'
-import { LeadRuleError, addInteraction, applyStatusChange, asText, findDuplicateLeads, listLeads, normalizeStatusInput, refreshPriority } from '../lead-core'
+import { LeadRuleError, addInteraction, applyStatusChange, asText, findDuplicateLeads, findOpenFollowUpOn, listLeads, normalizeStatusInput, refreshPriority } from '../lead-core'
 import { loadCadence } from '../settings'
 import { CHANNELS, MEETING_STATUSES, MEETING_TYPES, addDaysISO, isCallDirection, isCallResult, isClosedStatus, normalizePhone, todayISO } from '../../shared/leads'
 import type { FollowUpRow, MeetingRow } from '../../shared/types'
@@ -77,12 +77,17 @@ leadActivity.post('/leads/:id/interactions', async (c) => {
       // Default is +2 days, per the follow-up rule.
       const dueDate = input.nextFollowUpDate === undefined ? addDaysISO(2) : input.nextFollowUpDate
       if (dueDate && DATE.test(dueDate)) {
-        const dueTime = asText(input.nextFollowUpTime, 5)
-        followUpId = id()
-        await db
-          .prepare(`INSERT INTO follow_ups (id, owner_sub, lead_id, due_date, due_time, creation_mode, is_completed, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)`)
-          .bind(followUpId, owner, leadId, dueDate, dueTime && TIME.test(dueTime) ? dueTime : null, input.nextFollowUpDate === undefined ? 'Auto' : 'Manual', now())
-          .run()
+        const alreadyDue = await findOpenFollowUpOn(db, owner, leadId, dueDate)
+        if (alreadyDue) {
+          followUpId = alreadyDue
+        } else {
+          const dueTime = asText(input.nextFollowUpTime, 5)
+          followUpId = id()
+          await db
+            .prepare(`INSERT INTO follow_ups (id, owner_sub, lead_id, due_date, due_time, creation_mode, is_completed, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)`)
+            .bind(followUpId, owner, leadId, dueDate, dueTime && TIME.test(dueTime) ? dueTime : null, input.nextFollowUpDate === undefined ? 'Auto' : 'Manual', now())
+            .run()
+        }
       }
     }
     if (input.followUpId) {
@@ -122,6 +127,8 @@ leadActivity.post('/leads/:id/follow-ups', async (c) => {
   if (!(await leadExists(db, owner, leadId))) return c.json({ error: 'Not found.' }, 404)
   const input = await c.req.json<{ dueDate?: string; dueTime?: string | null }>()
   if (!input.dueDate || !DATE.test(input.dueDate)) return c.json({ error: 'Pick a follow-up date.' }, 400)
+  const duplicate = await findOpenFollowUpOn(db, owner, leadId, input.dueDate)
+  if (duplicate) return privateJson(c, { ok: true, followUpId: duplicate, duplicate: true }, 200)
   const followUpId = id()
   const dueTime = asText(input.dueTime, 5)
   await db
@@ -205,12 +212,17 @@ leadActivity.patch('/follow-ups/:id', async (c) => {
 
   let nextFollowUpId: string | null = null
   if (completed && input.nextStepDate && DATE.test(input.nextStepDate)) {
-    nextFollowUpId = id()
-    const nextTime = asText(input.nextStepTime, 5)
-    await db
-      .prepare(`INSERT INTO follow_ups (id, owner_sub, lead_id, due_date, due_time, creation_mode, is_completed, created_at) VALUES (?, ?, ?, ?, ?, 'Manual', 0, ?)`)
-      .bind(nextFollowUpId, owner, existing.lead_id as string, input.nextStepDate, nextTime && TIME.test(nextTime) ? nextTime : null, now())
-      .run()
+    const again = await findOpenFollowUpOn(db, owner, existing.lead_id as string, input.nextStepDate)
+    if (again) {
+      nextFollowUpId = again
+    } else {
+      nextFollowUpId = id()
+      const nextTime = asText(input.nextStepTime, 5)
+      await db
+        .prepare(`INSERT INTO follow_ups (id, owner_sub, lead_id, due_date, due_time, creation_mode, is_completed, created_at) VALUES (?, ?, ?, ?, ?, 'Manual', 0, ?)`)
+        .bind(nextFollowUpId, owner, existing.lead_id as string, input.nextStepDate, nextTime && TIME.test(nextTime) ? nextTime : null, now())
+        .run()
+    }
   }
   await refreshPriority(db, owner, existing.lead_id as string)
   return privateJson(c, { ok: true, nextFollowUpId })
@@ -327,12 +339,15 @@ leadActivity.post('/follow-ups/:id/complete', async (c) => {
 
   let nextFollowUpId: string | null = null
   if (!closing && leadWasOpen && nextDate) {
-    nextFollowUpId = id()
-    const nextTime = asText(input.nextStepTime, 5)
-    await db
-      .prepare(`INSERT INTO follow_ups (id, owner_sub, lead_id, due_date, due_time, creation_mode, is_completed, created_at) VALUES (?, ?, ?, ?, ?, 'Manual', 0, ?)`)
-      .bind(nextFollowUpId, owner, leadId, nextDate, nextTime && TIME.test(nextTime) ? nextTime : null, now())
-      .run()
+    nextFollowUpId = await findOpenFollowUpOn(db, owner, leadId, nextDate)
+    if (!nextFollowUpId) {
+      nextFollowUpId = id()
+      const nextTime = asText(input.nextStepTime, 5)
+      await db
+        .prepare(`INSERT INTO follow_ups (id, owner_sub, lead_id, due_date, due_time, creation_mode, is_completed, created_at) VALUES (?, ?, ?, ?, ?, 'Manual', 0, ?)`)
+        .bind(nextFollowUpId, owner, leadId, nextDate, nextTime && TIME.test(nextTime) ? nextTime : null, now())
+        .run()
+    }
   }
   await refreshPriority(db, owner, leadId)
   return privateJson(c, { ok: true, nextFollowUpId })

@@ -634,8 +634,12 @@ insights.post('/import', async (c) => {
     if (followUp && !closed) {
       statements.push(
         db
-          .prepare(`INSERT INTO follow_ups (id, owner_sub, lead_id, due_date, due_time, creation_mode, is_completed, created_at) VALUES (?, ?, ?, ?, NULL, 'Manual', 0, ?)`)
-          .bind(id(), owner, leadId, followUp, t),
+          .prepare(
+            `INSERT INTO follow_ups (id, owner_sub, lead_id, due_date, due_time, creation_mode, is_completed, created_at)
+             SELECT ?, ?, ?, ?, NULL, 'Manual', 0, ?
+             WHERE NOT EXISTS (SELECT 1 FROM follow_ups WHERE owner_sub = ? AND lead_id = ? AND is_completed = 0 AND due_date = ?)`,
+          )
+          .bind(id(), owner, leadId, followUp, t, owner, leadId, followUp),
       )
     }
     result.imported++
