@@ -193,6 +193,16 @@ leadActivity.patch('/follow-ups/:id', async (c) => {
     )
     .run()
 
+  // Reopening a finished follow-up is the only way a saved completion can
+  // disappear, so leave a trace in the lead history when it happens.
+  if (!completed && Number(existing.is_completed ?? 0) === 1) {
+    await addInteraction(db, owner, existing.lead_id as string, {
+      channel: 'System',
+      outcome: 'Follow-up reopened',
+      note: `Reopened the follow-up due ${existing.due_date as string}.`,
+    })
+  }
+
   let nextFollowUpId: string | null = null
   if (completed && input.nextStepDate && DATE.test(input.nextStepDate)) {
     nextFollowUpId = id()
@@ -281,10 +291,15 @@ leadActivity.post('/follow-ups/:id/complete', async (c) => {
     if (nextDate < today) return c.json({ error: 'The next step cannot be in the past.' }, 400)
   }
 
-  await db
-    .prepare(`UPDATE follow_ups SET is_completed = 1, completed_on = ?, completed_at = ? WHERE owner_sub = ? AND id = ?`)
+  // If this write does not land the follow-up stays on the board while the log
+  // entry below still saves, which looks like "it did not save". Fail loudly.
+  const written = await db
+    .prepare(`UPDATE follow_ups SET is_completed = 1, completed_on = ?, completed_at = ? WHERE owner_sub = ? AND id = ? AND is_completed = 0`)
     .bind(today, now(), owner, followUpId)
     .run()
+  if (!Number(written.meta.changes ?? 0)) {
+    return c.json({ error: 'This follow-up could not be marked complete. Reload the page and try again.' }, 409)
+  }
 
   if (closing) {
     try {

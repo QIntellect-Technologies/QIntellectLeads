@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 
 import { StatusBadge, WhatsAppButton } from '../components/lead-bits'
 import { CompleteFollowUpDialog, QuickLeadDialog, RescheduleDialog } from '../components/productivity'
-import { Badge, Button, Card, Checkbox, EmptyState, Input, KpiCard, PageHeader, Skeleton, TableProgress } from '../components/ui'
+import { Badge, Button, Card, Checkbox, ConfirmDialog, EmptyState, Input, KpiCard, PageHeader, Skeleton, TableProgress } from '../components/ui'
 import { api, useApiMutation, useFollowUps } from '../lib/api'
 import { cx } from '../lib/cx'
 import { addDaysISO, dmy, timeLabel, todayISO } from '../../shared/leads'
@@ -30,6 +30,7 @@ export function FollowUps() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [completing, setCompleting] = useState<FollowUpRow | null>(null)
+  const [reopening, setReopening] = useState<FollowUpRow | null>(null)
   const [rescheduling, setRescheduling] = useState<string[] | null>(null)
   const [quick, setQuick] = useState(false)
   const when = params.get('when') ?? 'today'
@@ -260,7 +261,7 @@ export function FollowUps() {
                     updating={updating === row.followUp.id}
                     selected={selected.has(row.followUp.id)}
                     onToggle={() => toggle(row.followUp.id)}
-                    onComplete={() => (row.followUp.completed ? (setUpdating(row.followUp.id), reopen.mutate(row.followUp.id)) : setCompleting(row))}
+                    onComplete={() => (row.followUp.completed ? setReopening(row) : setCompleting(row))}
                     onReschedule={() => setRescheduling([row.followUp.id])}
                   />
                 ))}
@@ -320,6 +321,19 @@ export function FollowUps() {
         followUpId={completing?.followUp.id ?? null}
         leadCode={completing?.lead.code}
         dueDate={completing ? dmy(completing.followUp.dueDate) : undefined}
+      />
+      <ConfirmDialog
+        open={Boolean(reopening)}
+        onClose={() => setReopening(null)}
+        onConfirm={() => {
+          if (!reopening) return
+          setUpdating(reopening.followUp.id)
+          reopen.mutate(reopening.followUp.id, { onSettled: () => setReopening(null) })
+        }}
+        title="Reopen this follow-up?"
+        description={reopening ? `${reopening.lead.code} is marked complete for ${dmy(reopening.followUp.dueDate)}. Reopening puts it back on the pending list.` : ''}
+        confirmLabel="Reopen"
+        loading={Boolean(updating)}
       />
       <RescheduleDialog
         open={Boolean(rescheduling)}
