@@ -61,7 +61,7 @@ app.route('/api', api)
 
 app.onError((error, c) => {
   console.error(error)
-  return c.json({ error: 'Something went wrong.' }, 500)
+  return c.json({ error: 'Something went wrong.', detail: error instanceof Error ? error.message : String(error) }, 500)
 })
 
 app.notFound((c) => (c.req.path.startsWith('/api/') ? c.json({ error: 'Not found.' }, 404) : c.env.ASSETS.fetch(c.req.raw)))
