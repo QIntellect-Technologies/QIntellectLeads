@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { privateJson } from '../auth'
 import { id, now } from '../db'
 import type { AppContext } from '../env'
-import { computePriority, isLeadStatus, normalizePhone, todayISO } from '../../shared/leads'
+import { computePriority, isLeadStatus, normalizePhone, phoneKey, todayISO } from '../../shared/leads'
 import type { LeadStatusKey } from '../../shared/leads'
 
 /**
@@ -233,13 +233,14 @@ leadBackup.post('/import/backup', async (c) => {
     contacts.forEach((contact, index) => {
       statements.push(
         db
-          .prepare(`INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, designation, contact_role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+          .prepare(`INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, phone_key, designation, contact_role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
           .bind(
             id(),
             owner,
             leadId,
             text(contact.fullName, 160) ?? text(organization?.name, 160) ?? code,
             normalizePhone(text(contact.phone, 40)) || null,
+            phoneKey(normalizePhone(text(contact.phone, 40)) || ''),
             text(contact.designation, 120),
             index === 0 ? 'Primary' : 'Point of Contact',
             createdAt,

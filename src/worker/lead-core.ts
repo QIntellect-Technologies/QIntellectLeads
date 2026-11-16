@@ -337,18 +337,21 @@ export async function findOpenFollowUpOn(db: D1Database, owner: string, leadId: 
 export async function findDuplicateLeads(db: D1Database, owner: string, phone: string, excludeLeadId?: string): Promise<DuplicateLead[]> {
   const key = phoneKey(phone)
   if (key.length < 7) return []
+  // Prefer the indexed phone_key column when it is populated. Rows that have
+  // not been backfilled yet (phone_key IS NULL) fall back to the in-memory
+  // scan, so correctness is preserved while the index shrinks the work.
   const rows = await db
     .prepare(
-      `SELECT l.id, l.lead_code, c.full_name, c.phone_number, o.organization_name
+      `SELECT l.id, l.lead_code, c.full_name, c.phone_number, c.phone_key, o.organization_name
        FROM lead_contacts c
        JOIN leads l ON l.id = c.lead_id AND l.owner_sub = c.owner_sub
        LEFT JOIN organizations o ON o.lead_id = l.id AND o.owner_sub = l.owner_sub
-       WHERE c.owner_sub = ? AND c.phone_number IS NOT NULL`,
+       WHERE c.owner_sub = ? AND (c.phone_key = ? OR c.phone_key IS NULL)`,
     )
-    .bind(owner)
+    .bind(owner, key)
     .all()
   return (rows.results as Row[])
-    .filter((r) => phoneKey(r.phone_number as string) === key && r.id !== excludeLeadId)
+    .filter((r) => phoneKey((r.phone_number as string) ?? '') === key && r.id !== excludeLeadId)
     .map((r) => ({
       id: r.id as string,
       code: r.lead_code as string,

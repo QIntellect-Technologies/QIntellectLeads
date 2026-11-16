@@ -326,6 +326,20 @@ const SCHEMA = [
     created_at INTEGER NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS outreach_calls_contact ON outreach_calls(owner_sub, contact_id, called_at DESC)`,
+
+  // --- Read-efficiency indexes ---------------------------------------------
+  // These keep the hot paths (follow-up list, last interaction, duplicate
+  // check, lead list) on index seeks instead of full table scans.
+  `CREATE INDEX IF NOT EXISTS follow_ups_owner_lead ON follow_ups(owner_sub, lead_id)`,
+  `CREATE INDEX IF NOT EXISTS follow_ups_owner_due ON follow_ups(owner_sub, due_date)`,
+  `CREATE INDEX IF NOT EXISTS interactions_owner_lead_date ON interactions(owner_sub, lead_id, interaction_date DESC)`,
+  `CREATE INDEX IF NOT EXISTS lead_contacts_owner_lead ON lead_contacts(owner_sub, lead_id)`,
+  `CREATE INDEX IF NOT EXISTS lead_contacts_owner_phone_key ON lead_contacts(owner_sub, phone_key)`,
+  `CREATE INDEX IF NOT EXISTS organizations_owner_lead ON organizations(owner_sub, lead_id)`,
+  `CREATE INDEX IF NOT EXISTS requirements_owner_lead ON requirements(owner_sub, lead_id)`,
+
+  // --- Lightweight key/value store for one-time migrations -------------------
+  `CREATE TABLE IF NOT EXISTS crm_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
 ]
 
 async function addColumnIfMissing(db: D1Database, table: string, column: string, definition: string) {
@@ -348,6 +362,7 @@ export function ensureSchema(db: D1Database): Promise<void> {
       await addColumnIfMissing(db, 'follow_ups', 'reschedule_reason', 'TEXT')
       await addColumnIfMissing(db, 'follow_ups', 'rescheduled_at', 'INTEGER')
       await addColumnIfMissing(db, 'follow_ups', 'rescheduled_count', 'INTEGER NOT NULL DEFAULT 0')
+      await addColumnIfMissing(db, 'lead_contacts', 'phone_key', 'TEXT')
 
       // Call details on the existing interaction timeline. These are additive
       // so old workspaces keep every call note and simply gain a result.
@@ -356,7 +371,11 @@ export function ensureSchema(db: D1Database): Promise<void> {
       await addColumnIfMissing(db, 'interactions', 'contact_id', 'TEXT')
       await addColumnIfMissing(db, 'interactions', 'contact_name', 'TEXT')
       await addColumnIfMissing(db, 'interactions', 'phone_number', 'TEXT')
-      await db
+      // The backfill below scans every interaction. Run it exactly once per
+      // database, then record that so cold starts stop paying for it.
+      const backfilled = await db.prepare(`SELECT value FROM crm_meta WHERE key = ?`).bind('call_result_backfilled').first<{ value: string }>()
+      if (!backfilled) {
+        await db
         .prepare(
           `UPDATE interactions SET call_result = CASE
              WHEN lower(COALESCE(outcome, '')) LIKE '%wrong number%' THEN 'Wrong number'
@@ -374,6 +393,8 @@ export function ensureSchema(db: D1Database): Promise<void> {
            WHERE channel = 'Call' AND call_result IS NULL`,
         )
         .run()
+        await db.prepare(`INSERT OR IGNORE INTO crm_meta (key, value) VALUES (?, ?)`).bind('call_result_backfilled', '1').run()
+      }
     })
     .then(
       () => undefined,

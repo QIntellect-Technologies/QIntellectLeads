@@ -4,11 +4,16 @@ import { privateJson } from '../auth'
 import type { AppContext } from '../env'
 import { addInteraction, asText, findDuplicateLeads, nextLeadCode, upsertOrganization } from '../lead-core'
 import { id, now } from '../db'
-import { isCallDirection, isCallResult, normalizePhone } from '../../shared/leads'
+import { isCallDirection, isCallResult, normalizePhone, phoneKey } from '../../shared/leads'
 import { isOutreachStatus, resultToStatus } from '../../shared/calling-list'
 import type { CallingListCounts, CallingListData, CallingListDetail, OutreachCall, OutreachContact } from '../../shared/types'
 
 export const callingList = new Hono<AppContext>()
+
+const callingListCache = new Map<string, { counts: Row; sources: Row[]; expires: number }>()
+function invalidateCallingListCache(owner: string) {
+  callingListCache.delete(owner)
+}
 
 type Row = Record<string, unknown>
 
@@ -77,22 +82,38 @@ callingList.get('/calling-list', async (c) => {
   }
   const clause = where.join(' AND ')
 
-  const [countsRow, totalRow, sourceRows, itemRows] = await db.batch([
-    db
-      .prepare(
-        `SELECT COUNT(*) AS total,
-           SUM(CASE WHEN status = 'Not called' THEN 1 ELSE 0 END) AS not_called,
-           SUM(CASE WHEN last_called_at IS NOT NULL THEN 1 ELSE 0 END) AS called,
-           SUM(CASE WHEN status = 'Interested' THEN 1 ELSE 0 END) AS interested,
-           SUM(CASE WHEN status = 'Not interested' THEN 1 ELSE 0 END) AS not_interested,
-           SUM(CASE WHEN status = 'Converted' THEN 1 ELSE 0 END) AS converted,
-           SUM(CASE WHEN status = 'Wrong number' THEN 1 ELSE 0 END) AS wrong_number,
-           SUM(CASE WHEN status = 'Callback' THEN 1 ELSE 0 END) AS callback
-         FROM outreach_contacts WHERE owner_sub = ?`,
-      )
-      .bind(owner),
+  // Counts and the source list are unfiltered: cache them per owner for a
+  // minute so repeated page views stop re-scanning all 4,489 contacts.
+  const cached = callingListCache.get(owner)
+  let rawCounts: Row
+  let sourceRows: { results?: Row[] }
+  if (cached && cached.expires > Date.now()) {
+    rawCounts = cached.counts as Row
+    sourceRows = { results: cached.sources as Row[] }
+  } else {
+    const [cr, sr] = await db.batch([
+      db
+        .prepare(
+          `SELECT COUNT(*) AS total,
+             SUM(CASE WHEN status = 'Not called' THEN 1 ELSE 0 END) AS not_called,
+             SUM(CASE WHEN last_called_at IS NOT NULL THEN 1 ELSE 0 END) AS called,
+             SUM(CASE WHEN status = 'Interested' THEN 1 ELSE 0 END) AS interested,
+             SUM(CASE WHEN status = 'Not interested' THEN 1 ELSE 0 END) AS not_interested,
+             SUM(CASE WHEN status = 'Converted' THEN 1 ELSE 0 END) AS converted,
+             SUM(CASE WHEN status = 'Wrong number' THEN 1 ELSE 0 END) AS wrong_number,
+             SUM(CASE WHEN status = 'Callback' THEN 1 ELSE 0 END) AS callback
+           FROM outreach_contacts WHERE owner_sub = ?`,
+        )
+        .bind(owner),
+      db.prepare(`SELECT DISTINCT source_list FROM outreach_contacts WHERE owner_sub = ?`).bind(owner),
+    ])
+    rawCounts = (cr.results?.[0] ?? {}) as Row
+    sourceRows = { results: (sr.results ?? []) as Row[] }
+    callingListCache.set(owner, { counts: rawCounts, sources: sourceRows.results ?? [], expires: Date.now() + 60000 })
+  }
+
+  const [totalRow, itemRows] = await db.batch([
     db.prepare(`SELECT COUNT(*) AS total FROM outreach_contacts oc WHERE ${clause}`).bind(...binds),
-    db.prepare(`SELECT source_list FROM outreach_contacts WHERE owner_sub = ?`).bind(owner),
     db
       .prepare(
         `${CONTACT_SELECT} WHERE ${clause}
@@ -105,7 +126,6 @@ callingList.get('/calling-list', async (c) => {
       .bind(...binds, pageSize, page * pageSize),
   ])
 
-  const rawCounts = (countsRow.results[0] ?? {}) as Row
   const counts: CallingListCounts = {
     total: Number(rawCounts.total ?? 0),
     notCalled: Number(rawCounts.not_called ?? 0),
@@ -200,6 +220,7 @@ callingList.post('/calling-list/:id/calls', async (c) => {
     .bind(nextStatus, input.result, t, t, owner, contactId)
     .run()
 
+  invalidateCallingListCache(owner)
   return privateJson(c, { ok: true })
 })
 
@@ -243,6 +264,7 @@ callingList.patch('/calling-list/:id', async (c) => {
     .bind(...binds, now(), owner, contactId)
     .run()
   if (!result.meta.changes) return c.json({ error: 'Number not found.' }, 404)
+  invalidateCallingListCache(owner)
   return privateJson(c, { ok: true })
 })
 
@@ -298,10 +320,10 @@ callingList.post('/calling-list/:id/convert', async (c) => {
       .run()
     await db
       .prepare(
-        `INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, designation, contact_role, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'Primary', ?)`,
+        `INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, phone_key, designation, contact_role, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'Primary', ?)`,
       )
-      .bind(id(), owner, leadId, fullName, phone, asText(row.designation, 80), t)
+      .bind(id(), owner, leadId, fullName, phone, phoneKey(phone), asText(row.designation, 80), t)
       .run()
     await upsertOrganization(db, owner, leadId, {
       name: companyName,
@@ -321,5 +343,6 @@ callingList.post('/calling-list/:id/convert', async (c) => {
     .bind(leadId, t, owner, contactId)
     .run()
 
+  invalidateCallingListCache(owner)
   return privateJson(c, { leadId, code, existing: duplicates.length > 0 })
 })

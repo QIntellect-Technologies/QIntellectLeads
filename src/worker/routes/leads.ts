@@ -141,10 +141,10 @@ leads.post('/', async (c) => {
 
   await db
     .prepare(
-      `INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, designation, contact_role, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'Primary', ?)`,
+      `INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, phone_key, designation, contact_role, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'Primary', ?)`,
     )
-    .bind(id(), owner, leadId, fullName, phone, asText(input.designation, 80), t)
+    .bind(id(), owner, leadId, fullName, phone, phoneKey(phone), asText(input.designation, 80), t)
     .run()
 
   await upsertOrganization(db, owner, leadId, {
