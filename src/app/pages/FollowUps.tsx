@@ -37,7 +37,11 @@ export function FollowUps() {
   const q = params.get('q') ?? ''
   const page = Math.max(0, Number(params.get('page') ?? 0))
   const { data, isLoading, isFetching } = useFollowUps({ when, date, q })
-  const items = data?.items ?? []
+  // Open work first, finished work last: completing one visibly moves it out
+  // of the queue you are working through.
+  const items = [...(data?.items ?? [])].sort((a, b) => Number(a.followUp.completed) - Number(b.followUp.completed))
+  const openCount = items.filter((row) => !row.followUp.completed).length
+  const doneCount = items.length - openCount
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE))
   const current = Math.min(page, totalPages - 1)
   const pageItems = items.slice(current * PAGE, current * PAGE + PAGE)
@@ -188,7 +192,9 @@ export function FollowUps() {
           <h2 className="text-[15px] font-semibold">{title}</h2>
           <p className="mt-0.5 text-[12.5px] text-muted">{subtitle}</p>
         </div>
-        <span className="text-[12.5px] tabular-nums text-faint">{items.length} shown</span>
+        <span className="text-[12.5px] tabular-nums text-faint">
+          {items.length} shown{doneCount > 0 ? ` · ${openCount} open · ${doneCount} done` : ''}
+        </span>
       </div>
 
       {selectedIds.length > 0 && (
@@ -360,7 +366,7 @@ function FollowUpTableRow({
           : { label: 'Upcoming', tone: 'info' as const }
 
   return (
-    <tr className="align-top transition-colors hover:bg-surface-2/60">
+    <tr className={cx('align-top transition-colors hover:bg-surface-2/60', followUp.completed && 'bg-surface-2/30')}>
       <td className="px-3 py-3">
         <Checkbox aria-label={`Select follow-up for ${lead.code}`} disabled={followUp.completed} checked={selected} onChange={onToggle} />
       </td>
@@ -387,7 +393,7 @@ function FollowUpTableRow({
         )}
       </td>
       <td className="px-4 py-3">
-        <p className="font-medium tabular-nums">{dmy(due)}</p>
+        <p className={cx('font-medium tabular-nums', followUp.completed && 'text-faint line-through')}>{dmy(due)}</p>
         <p className="mt-0.5 text-[11.5px] text-faint">{followUp.dueTime ? timeLabel(followUp.dueTime) : 'Time not set'}</p>
         <p className="mt-0.5 text-[11px] text-faint">{followUp.mode}</p>
       </td>
