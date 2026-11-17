@@ -42,10 +42,15 @@ app.post('/api/auth/logout', handleLogout)
 app.post('/api/admin/backfill-phone-keys', requireUser, requireDb, async (c) => {
   const db = c.get('db')
   const owner = c.get('user').sub
-  const rows = await db
-    .prepare(`SELECT id, phone_number FROM lead_contacts WHERE owner_sub = ? AND (phone_key IS NULL OR phone_key = '')`)
-    .bind(owner)
-    .all<{ id: string; phone_number: string | null }>()
+  let rows: { results: { id: string; phone_number: string | null }[] }
+  try {
+    rows = await db
+      .prepare(`SELECT id, phone_number FROM lead_contacts WHERE owner_sub = ? AND (phone_key IS NULL OR phone_key = '')`)
+      .bind(owner)
+      .all<{ id: string; phone_number: string | null }>()
+  } catch {
+    return c.json({ error: 'phone_key column not available yet; ensureSchema must run first (after write quota resets).' }, 503)
+  }
   let updated = 0
   for (const row of rows.results) {
     const key = phoneKey(row.phone_number ?? '')

@@ -392,11 +392,6 @@ export function ensureSchema(db: D1Database): Promise<void> {
       } catch { /* ignore write failures */ }
     }
   })()
-  // Reset cached promise on failure so a later request can retry.
-  ready = ready.then(
-    () => undefined,
-    (error) => { ready = undefined; throw error },
-  )
   return ready
 }
 
