@@ -351,65 +351,52 @@ async function addColumnIfMissing(db: D1Database, table: string, column: string,
 let ready: Promise<void> | undefined
 
 export function ensureSchema(db: D1Database): Promise<void> {
-  ready ??= db
-    .batch(SCHEMA.map((sql) => db.prepare(sql)))
-    .then(async () => {
-      // D1 has no migration runner. Existing workspaces get the new columns
-      // added once per isolate; fresh workspaces already have them above.
-      // Migrations are best-effort: on a write-exhausted database these ALTERs
-      // fail, but the app must still serve reads against the existing schema.
-      const safeAdd = async (t: string, c: string, d: string) => { try { await addColumnIfMissing(db, t, c, d) } catch { /* ignore */ } }
-      await safeAdd('follow_ups', 'completed_on', 'TEXT')
-      await safeAdd('follow_ups', 'completed_at', 'INTEGER')
-      await safeAdd('follow_ups', 'reschedule_reason', 'TEXT')
-      await safeAdd('follow_ups', 'rescheduled_at', 'INTEGER')
-      await safeAdd('follow_ups', 'rescheduled_count', 'INTEGER NOT NULL DEFAULT 0')
-      await safeAdd('lead_contacts', 'phone_key', 'TEXT')
-      try { await db.prepare(`CREATE INDEX IF NOT EXISTS lead_contacts_owner_phone_key ON lead_contacts(owner_sub, phone_key)`).run() } catch { /* ignore */ }
-      await db.prepare(`CREATE INDEX IF NOT EXISTS lead_contacts_owner_phone_key ON lead_contacts(owner_sub, phone_key)`).run()
-
-      // Call details on the existing interaction timeline. These are additive
-      // so old workspaces keep every call note and simply gain a result.
-      await addColumnIfMissing(db, 'interactions', 'call_result', 'TEXT')
-      await addColumnIfMissing(db, 'interactions', 'call_direction', 'TEXT')
-      await addColumnIfMissing(db, 'interactions', 'contact_id', 'TEXT')
-      await addColumnIfMissing(db, 'interactions', 'contact_name', 'TEXT')
-      await addColumnIfMissing(db, 'interactions', 'phone_number', 'TEXT')
-      // The backfill below scans every interaction. Run it exactly once per
-      // database, then record that so cold starts stop paying for it.
-      let backfilled: { value: string } | null = null
-      try { backfilled = await db.prepare(`SELECT value FROM crm_meta WHERE key = ?`).bind('call_result_backfilled').first<{ value: string }>() } catch { backfilled = null }
-      if (!backfilled) {
-        try {
-        await db
-        .prepare(
-          `UPDATE interactions SET call_result = CASE
-             WHEN lower(COALESCE(outcome, '')) LIKE '%wrong number%' THEN 'Wrong number'
-             WHEN lower(COALESCE(outcome, '')) LIKE '%voicemail%' OR lower(COALESCE(outcome, '')) LIKE '%voice mail%' THEN 'Voicemail'
-             WHEN lower(COALESCE(outcome, '')) LIKE '%busy%' THEN 'Busy'
-             WHEN lower(COALESCE(outcome, '')) LIKE '%callback%' THEN 'Callback requested'
-             WHEN lower(COALESCE(outcome, '')) LIKE '%no answer%' OR lower(COALESCE(outcome, '')) LIKE '%not answer%'
-               OR lower(COALESCE(outcome, '')) LIKE '%no response%' OR lower(COALESCE(outcome, '')) LIKE '%not responding%'
-               OR lower(COALESCE(outcome, '')) LIKE '%not received%' OR lower(COALESCE(outcome, '')) LIKE '%unreachable%'
-               OR lower(COALESCE(outcome, '')) LIKE '%call attempted%' THEN 'No answer'
-             WHEN lower(COALESCE(outcome, '')) LIKE '%connect%' OR lower(COALESCE(outcome, '')) LIKE '%conversation%'
-               OR lower(COALESCE(outcome, '')) LIKE '%spoke%' THEN 'Connected'
-             ELSE 'Unknown'
-           END
-           WHERE channel = 'Call' AND call_result IS NULL`,
-        )
-        .run()
+  ready ??= (async () => {
+    // Schema creation is best-effort overall: on a write-exhausted database the
+    // CREATE INDEX / ALTER TABLE statements fail, but reads must still work.
+    try { await db.batch(SCHEMA.map((sql) => db.prepare(sql))) } catch { /* ignore */ }
+    const safeAdd = async (t: string, c: string, d: string) => { try { await addColumnIfMissing(db, t, c, d) } catch { /* ignore */ } }
+    await safeAdd('follow_ups', 'completed_on', 'TEXT')
+    await safeAdd('follow_ups', 'completed_at', 'INTEGER')
+    await safeAdd('follow_ups', 'reschedule_reason', 'TEXT')
+    await safeAdd('follow_ups', 'rescheduled_at', 'INTEGER')
+    await safeAdd('follow_ups', 'rescheduled_count', 'INTEGER NOT NULL DEFAULT 0')
+    await safeAdd('lead_contacts', 'phone_key', 'TEXT')
+    try { await db.prepare(`CREATE INDEX IF NOT EXISTS lead_contacts_owner_phone_key ON lead_contacts(owner_sub, phone_key)`).run() } catch { /* ignore */ }
+    // Call details on the existing interaction timeline. Best-effort.
+    await safeAdd('interactions', 'call_result', 'TEXT')
+    await safeAdd('interactions', 'call_direction', 'TEXT')
+    await safeAdd('interactions', 'contact_id', 'TEXT')
+    await safeAdd('interactions', 'contact_name', 'TEXT')
+    await safeAdd('interactions', 'phone_number', 'TEXT')
+    // Backfill call_result once. Best-effort (writes may be blocked).
+    let backfilled: { value: string } | null = null
+    try { backfilled = await db.prepare(`SELECT value FROM crm_meta WHERE key = ?`).bind('call_result_backfilled').first<{ value: string }>() } catch { backfilled = null }
+    if (!backfilled) {
+      try {
+        await db.prepare(`UPDATE interactions SET call_result = CASE
+           WHEN lower(COALESCE(outcome, '')) LIKE '%wrong number%' THEN 'Wrong number'
+           WHEN lower(COALESCE(outcome, '')) LIKE '%voicemail%' OR lower(COALESCE(outcome, '')) LIKE '%voice mail%' THEN 'Voicemail'
+           WHEN lower(COALESCE(outcome, '')) LIKE '%busy%' THEN 'Busy'
+           WHEN lower(COALESCE(outcome, '')) LIKE '%callback%' THEN 'Callback requested'
+           WHEN lower(COALESCE(outcome, '')) LIKE '%no answer%' OR lower(COALESCE(outcome, '')) LIKE '%not answer%'
+             OR lower(COALESCE(outcome, '')) LIKE '%no response%' OR lower(COALESCE(outcome, '')) LIKE '%not responding%'
+             OR lower(COALESCE(outcome, '')) LIKE '%not received%' OR lower(COALESCE(outcome, '')) LIKE '%unreachable%'
+             OR lower(COALESCE(outcome, '')) LIKE '%call attempted%' THEN 'No answer'
+           WHEN lower(COALESCE(outcome, '')) LIKE '%connect%' OR lower(COALESCE(outcome, '')) LIKE '%conversation%'
+             OR lower(COALESCE(outcome, '')) LIKE '%spoke%' THEN 'Connected'
+           ELSE 'Unknown'
+         END
+         WHERE channel = 'Call' AND call_result IS NULL`).run()
         try { await db.prepare(`INSERT OR IGNORE INTO crm_meta (key, value) VALUES (?, ?)`).bind('call_result_backfilled', '1').run() } catch { /* ignore */ }
-        } catch { /* ignore write failures */ }
-      }
-    })
-    .then(
-      () => undefined,
-      (error) => {
-        ready = undefined
-        throw error
-      },
-    )
+      } catch { /* ignore write failures */ }
+    }
+  })()
+  // Reset cached promise on failure so a later request can retry.
+  ready = ready.then(
+    () => undefined,
+    (error) => { ready = undefined; throw error },
+  )
   return ready
 }
 
