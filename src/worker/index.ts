@@ -41,14 +41,18 @@ app.post('/api/auth/logout', handleLogout)
 app.post('/api/admin/backfill-phone-keys', requireUser, requireDb, async (c) => {
   const db = c.get('db')
   const owner = c.get('user').sub
-  const rows = await db.prepare(`SELECT id, phone_number FROM lead_contacts WHERE owner_sub = ? AND (phone_key IS NULL OR phone_key = '')`).bind(owner).all<{ id: string; phone_number: string | null }>()
-  let updated = 0
-  for (const row of rows.results) {
-    const key = phoneKey(row.phone_number ?? '')
-    await db.prepare(`UPDATE lead_contacts SET phone_key = ? WHERE id = ? AND owner_sub = ?`).bind(key, row.id, owner).run()
-    updated++
+  try {
+    const rows = await db.prepare(`SELECT id, phone_number FROM lead_contacts WHERE owner_sub = ? AND (phone_key IS NULL OR phone_key = '')`).bind(owner).all<{ id: string; phone_number: string | null }>()
+    let updated = 0
+    for (const row of rows.results) {
+      const key = phoneKey(row.phone_number ?? '')
+      await db.prepare(`UPDATE lead_contacts SET phone_key = ? WHERE id = ? AND owner_sub = ?`).bind(key, row.id, owner).run()
+      updated++
+    }
+    return c.json({ scanned: rows.results.length, updated })
+  } catch (e) {
+    return c.json({ error: String(e) }, 500)
   }
-  return c.json({ scanned: rows.results.length, updated })
 })
 
 const api = new Hono<AppContext>()
