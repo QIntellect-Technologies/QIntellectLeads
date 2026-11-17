@@ -4,6 +4,7 @@ import { authMode, getAuth, handleLogin, handleLogout, requireUser } from './aut
 import { requireDb } from './db'
 import { runDueEmails } from './email'
 import type { AppContext, Env } from './env'
+import { phoneKey } from '../shared/leads'
 import { activities } from './routes/activities'
 import { companies } from './routes/companies'
 import { contacts } from './routes/contacts'
@@ -35,6 +36,33 @@ app.get('/api/health', (c) => c.json({ ok: true }))
 
 app.post('/api/auth/login', handleLogin)
 app.post('/api/auth/logout', handleLogout)
+
+// TEMPORARY (remove after backfill): populate phone_key for existing contacts.
+// Safe to call repeatedly; only touches rows where phone_key is NULL/empty.
+app.post('/api/admin/backfill-phone-keys', requireUser, requireDb, async (c) => {
+  const db = c.get('db')
+  const owner = c.get('user').sub
+  const rows = await db
+    .prepare(`SELECT id, phone_number FROM lead_contacts WHERE owner_sub = ? AND (phone_key IS NULL OR phone_key = '')`)
+    .bind(owner)
+    .all<{ id: string; phone_number: string | null }>()
+  let updated = 0
+  for (const row of rows.results) {
+    const key = phoneKey(row.phone_number ?? '')
+    try {
+      await db.prepare(`UPDATE lead_contacts SET phone_key = ? WHERE id = ? AND owner_sub = ?`).bind(key, row.id, owner).run()
+      updated++
+    } catch {
+      /* column may not exist yet; skip */
+    }
+  }
+  const remaining = await db
+    .prepare(`SELECT COUNT(*) AS n FROM lead_contacts WHERE owner_sub = ? AND (phone_key IS NULL OR phone_key = '')`)
+    .bind(owner)
+    .first<{ n: number }>()
+    .catch(() => ({ n: -1 }))
+  return c.json({ scanned: rows.results.length, updated, remaining: remaining?.n ?? -1 })
+})
 
 
 
