@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 
 import { authMode, getAuth, handleLogin, handleLogout, requireUser } from './auth'
-import { requireDb } from './db'
+import { requireDb, ensureSchema } from './db'
 import { runDueEmails } from './email'
 import type { AppContext, Env } from './env'
 import { phoneKey } from '../shared/leads'
@@ -36,6 +36,18 @@ app.get('/api/health', (c) => c.json({ ok: true }))
 
 app.post('/api/auth/login', handleLogin)
 app.post('/api/auth/logout', handleLogout)
+
+// TEMPORARY debug: run ensureSchema and report error.
+app.get('/api/admin/schema-check', requireUser, async (c) => {
+  const db = c.env.DB
+  if (!db) return c.json({ error: 'no db' }, 500)
+  try {
+    await ensureSchema(db)
+    return c.json({ ok: true })
+  } catch (e) {
+    return c.json({ error: String(e), stack: (e as Error)?.stack }, 500)
+  }
+})
 
 // TEMPORARY: backfill phone_key on existing lead_contacts. Remove after running.
 app.post('/api/admin/backfill-phone-keys', requireUser, requireDb, async (c) => {
