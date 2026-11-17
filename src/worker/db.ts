@@ -334,7 +334,6 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS follow_ups_owner_due ON follow_ups(owner_sub, due_date)`,
   `CREATE INDEX IF NOT EXISTS interactions_owner_lead_date ON interactions(owner_sub, lead_id, interaction_date DESC)`,
   `CREATE INDEX IF NOT EXISTS lead_contacts_owner_lead ON lead_contacts(owner_sub, lead_id)`,
-  `CREATE INDEX IF NOT EXISTS lead_contacts_owner_phone_key ON lead_contacts(owner_sub, phone_key)`,
   `CREATE INDEX IF NOT EXISTS organizations_owner_lead ON organizations(owner_sub, lead_id)`,
   `CREATE INDEX IF NOT EXISTS requirements_owner_lead ON requirements(owner_sub, lead_id)`,
 
@@ -363,6 +362,7 @@ export function ensureSchema(db: D1Database): Promise<void> {
       await addColumnIfMissing(db, 'follow_ups', 'rescheduled_at', 'INTEGER')
       await addColumnIfMissing(db, 'follow_ups', 'rescheduled_count', 'INTEGER NOT NULL DEFAULT 0')
       await addColumnIfMissing(db, 'lead_contacts', 'phone_key', 'TEXT')
+      await db.prepare(`CREATE INDEX IF NOT EXISTS lead_contacts_owner_phone_key ON lead_contacts(owner_sub, phone_key)`).run()
 
       // Call details on the existing interaction timeline. These are additive
       // so old workspaces keep every call note and simply gain a result.
