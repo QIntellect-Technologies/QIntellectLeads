@@ -4,7 +4,7 @@ import { privateJson } from '../auth'
 import type { AppContext } from '../env'
 import { addInteraction, asText, findDuplicateLeads, nextLeadCode, upsertOrganization } from '../lead-core'
 import { id, now } from '../db'
-import { isCallDirection, isCallResult, normalizePhone, phoneKey } from '../../shared/leads'
+import { isCallDirection, isCallResult, normalizePhone } from '../../shared/leads'
 import { isOutreachStatus, resultToStatus } from '../../shared/calling-list'
 import type { CallingListCounts, CallingListData, CallingListDetail, OutreachCall, OutreachContact } from '../../shared/types'
 
@@ -320,10 +320,10 @@ callingList.post('/calling-list/:id/convert', async (c) => {
       .run()
     await db
       .prepare(
-        `INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, phone_key, designation, contact_role, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'Primary', ?)`,
+        `INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, designation, contact_role, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'Primary', ?)`,
       )
-      .bind(id(), owner, leadId, fullName, phone, phoneKey(phone), asText(row.designation, 80), t)
+      .bind(id(), owner, leadId, fullName, phone, asText(row.designation, 80), t)
       .run()
     await upsertOrganization(db, owner, leadId, {
       name: companyName,

@@ -6,7 +6,7 @@ import { id, now } from '../db'
 import type { AppContext } from '../env'
 import { LeadRuleError, addInteraction, applyStatusChange, asText, findDuplicateLeads, findOpenFollowUpOn, listLeads, normalizeStatusInput, refreshPriority } from '../lead-core'
 import { loadCadence } from '../settings'
-import { CHANNELS, MEETING_STATUSES, MEETING_TYPES, addDaysISO, isCallDirection, isCallResult, isClosedStatus, normalizePhone, phoneKey, todayISO } from '../../shared/leads'
+import { CHANNELS, MEETING_STATUSES, MEETING_TYPES, addDaysISO, isCallDirection, isCallResult, isClosedStatus, normalizePhone, todayISO } from '../../shared/leads'
 import type { FollowUpRow, MeetingRow } from '../../shared/types'
 
 export const leadActivity = new Hono<AppContext>()
@@ -609,8 +609,8 @@ leadActivity.post('/leads/:id/contacts', async (c) => {
   }
   const contactId = id()
   await db
-    .prepare(`INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, phone_key, designation, contact_role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(contactId, owner, leadId, fullName, phone || null, phoneKey(phone || ''), asText(input.designation, 80), role, now())
+    .prepare(`INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, designation, contact_role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(contactId, owner, leadId, fullName, phone || null, asText(input.designation, 80), role, now())
     .run()
   return privateJson(c, { ok: true, contactId }, 201)
 })

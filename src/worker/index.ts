@@ -1,10 +1,9 @@
 import { Hono } from 'hono'
 
 import { authMode, getAuth, handleLogin, handleLogout, requireUser } from './auth'
-import { requireDb, ensureSchema } from './db'
+import { requireDb } from './db'
 import { runDueEmails } from './email'
 import type { AppContext, Env } from './env'
-import { phoneKey } from '../shared/leads'
 import { activities } from './routes/activities'
 import { companies } from './routes/companies'
 import { contacts } from './routes/contacts'
@@ -37,35 +36,6 @@ app.get('/api/health', (c) => c.json({ ok: true }))
 app.post('/api/auth/login', handleLogin)
 app.post('/api/auth/logout', handleLogout)
 
-// TEMPORARY debug: run ensureSchema and report error.
-app.get('/api/admin/schema-check', requireUser, async (c) => {
-  const db = c.env.DB
-  if (!db) return c.json({ error: 'no db' }, 500)
-  try {
-    await ensureSchema(db)
-    return c.json({ ok: true })
-  } catch (e) {
-    return c.json({ error: String(e), stack: (e as Error)?.stack }, 500)
-  }
-})
-
-// TEMPORARY: backfill phone_key on existing lead_contacts. Remove after running.
-app.post('/api/admin/backfill-phone-keys', requireUser, requireDb, async (c) => {
-  const db = c.get('db')
-  const owner = c.get('user').sub
-  try {
-    const rows = await db.prepare(`SELECT id, phone_number FROM lead_contacts WHERE owner_sub = ? AND (phone_key IS NULL OR phone_key = '')`).bind(owner).all<{ id: string; phone_number: string | null }>()
-    let updated = 0
-    for (const row of rows.results) {
-      const key = phoneKey(row.phone_number ?? '')
-      await db.prepare(`UPDATE lead_contacts SET phone_key = ? WHERE id = ? AND owner_sub = ?`).bind(key, row.id, owner).run()
-      updated++
-    }
-    return c.json({ scanned: rows.results.length, updated })
-  } catch (e) {
-    return c.json({ error: String(e) }, 500)
-  }
-})
 
 const api = new Hono<AppContext>()
 api.use('*', requireUser, requireDb)

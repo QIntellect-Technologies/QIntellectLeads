@@ -356,12 +356,16 @@ export function ensureSchema(db: D1Database): Promise<void> {
     .then(async () => {
       // D1 has no migration runner. Existing workspaces get the new columns
       // added once per isolate; fresh workspaces already have them above.
-      await addColumnIfMissing(db, 'follow_ups', 'completed_on', 'TEXT')
-      await addColumnIfMissing(db, 'follow_ups', 'completed_at', 'INTEGER')
-      await addColumnIfMissing(db, 'follow_ups', 'reschedule_reason', 'TEXT')
-      await addColumnIfMissing(db, 'follow_ups', 'rescheduled_at', 'INTEGER')
-      await addColumnIfMissing(db, 'follow_ups', 'rescheduled_count', 'INTEGER NOT NULL DEFAULT 0')
-      await addColumnIfMissing(db, 'lead_contacts', 'phone_key', 'TEXT')
+      // Migrations are best-effort: on a write-exhausted database these ALTERs
+      // fail, but the app must still serve reads against the existing schema.
+      const safeAdd = async (t: string, c: string, d: string) => { try { await addColumnIfMissing(db, t, c, d) } catch { /* ignore */ } }
+      await safeAdd('follow_ups', 'completed_on', 'TEXT')
+      await safeAdd('follow_ups', 'completed_at', 'INTEGER')
+      await safeAdd('follow_ups', 'reschedule_reason', 'TEXT')
+      await safeAdd('follow_ups', 'rescheduled_at', 'INTEGER')
+      await safeAdd('follow_ups', 'rescheduled_count', 'INTEGER NOT NULL DEFAULT 0')
+      await safeAdd('lead_contacts', 'phone_key', 'TEXT')
+      try { await db.prepare(`CREATE INDEX IF NOT EXISTS lead_contacts_owner_phone_key ON lead_contacts(owner_sub, phone_key)`).run() } catch { /* ignore */ }
       await db.prepare(`CREATE INDEX IF NOT EXISTS lead_contacts_owner_phone_key ON lead_contacts(owner_sub, phone_key)`).run()
 
       // Call details on the existing interaction timeline. These are additive
@@ -373,8 +377,10 @@ export function ensureSchema(db: D1Database): Promise<void> {
       await addColumnIfMissing(db, 'interactions', 'phone_number', 'TEXT')
       // The backfill below scans every interaction. Run it exactly once per
       // database, then record that so cold starts stop paying for it.
-      const backfilled = await db.prepare(`SELECT value FROM crm_meta WHERE key = ?`).bind('call_result_backfilled').first<{ value: string }>()
+      let backfilled: { value: string } | null = null
+      try { backfilled = await db.prepare(`SELECT value FROM crm_meta WHERE key = ?`).bind('call_result_backfilled').first<{ value: string }>() } catch { backfilled = null }
       if (!backfilled) {
+        try {
         await db
         .prepare(
           `UPDATE interactions SET call_result = CASE
@@ -393,7 +399,8 @@ export function ensureSchema(db: D1Database): Promise<void> {
            WHERE channel = 'Call' AND call_result IS NULL`,
         )
         .run()
-        await db.prepare(`INSERT OR IGNORE INTO crm_meta (key, value) VALUES (?, ?)`).bind('call_result_backfilled', '1').run()
+        try { await db.prepare(`INSERT OR IGNORE INTO crm_meta (key, value) VALUES (?, ?)`).bind('call_result_backfilled', '1').run() } catch { /* ignore */ }
+        } catch { /* ignore write failures */ }
       }
     })
     .then(

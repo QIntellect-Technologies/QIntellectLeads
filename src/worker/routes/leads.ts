@@ -141,11 +141,13 @@ leads.post('/', async (c) => {
 
   await db
     .prepare(
-      `INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, phone_key, designation, contact_role, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'Primary', ?)`,
+      `INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, designation, contact_role, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'Primary', ?)`,
     )
-    .bind(id(), owner, leadId, fullName, phone, phoneKey(phone), asText(input.designation, 80), t)
+    .bind(id(), owner, leadId, fullName, phone, asText(input.designation, 80), t)
     .run()
+  // Best-effort: populate phone_key when the column exists (no-op otherwise).
+  try { await db.prepare(`UPDATE lead_contacts SET phone_key = ? WHERE lead_id = ? AND owner_sub = ?`).bind(phoneKey(phone), leadId, owner).run() } catch { /* ignore */ }
 
   await upsertOrganization(db, owner, leadId, {
     name: asText(input.companyName, 160),

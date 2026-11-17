@@ -602,8 +602,8 @@ insights.post('/import', async (c) => {
     if (cell(cells, 'contactName') || phone) {
       statements.push(
         db
-          .prepare(`INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, phone_key, designation, contact_role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'Primary', ?)`)
-          .bind(id(), owner, leadId, contactName, phone || null, phoneKey(phone || ''), asText(cell(cells, 'designation'), 80), t),
+          .prepare(`INSERT INTO lead_contacts (id, owner_sub, lead_id, full_name, phone_number, designation, contact_role, created_at) VALUES (?, ?, ?, ?, ?, ?, 'Primary', ?)`)
+          .bind(id(), owner, leadId, contactName, phone || null, asText(cell(cells, 'designation'), 80), t),
       )
     }
     if (cell(cells, 'requirementSummary') || cell(cells, 'details') || cell(cells, 'objection') || lossReason || cell(cells, 'internalRemarks')) {
