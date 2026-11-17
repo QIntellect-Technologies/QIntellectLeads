@@ -37,6 +37,7 @@ app.post('/api/auth/login', handleLogin)
 app.post('/api/auth/logout', handleLogout)
 
 
+
 const api = new Hono<AppContext>()
 api.use('*', requireUser, requireDb)
 // Lead management routes come first: /search and /today are lead-specific.
