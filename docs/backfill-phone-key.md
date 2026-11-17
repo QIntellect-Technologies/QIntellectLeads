@@ -1,6 +1,6 @@
 # phone_key backfill runbook
 
-Run **after midnight UTC** (05:00 PKT), once D1 daily write quotas reset.
+Run **after midnight UTC** (06:00 PM your local time), once D1 daily write quotas reset.
 
 ## 1. Production (Cloudflare Workers) — `https://qintellectleads.qintellecttechnologies.workers.dev`
 
