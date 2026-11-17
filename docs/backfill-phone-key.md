@@ -31,7 +31,12 @@ curl -s -b /tmp/s.txt -X POST "$BASE/api/admin/backfill-phone-keys" \
   -H "Origin: $BASE"
 ```
 
-The Sites worker already has the endpoint from the last successful deploy, so no redeploy is needed unless the build changed.
+NOTE: the backfill endpoint was added in commit 6fea373, which has NOT yet been deployed to Sites. Before calling it, redeploy:
+```bash
+cd <project>
+npm run build
+# then sites_deploy (preview) with a fresh requestId, or use the Freebuff UI
+```
 
 ## 3. Cleanup (after both backfills report `remaining: 0`)
 
