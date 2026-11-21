@@ -95,7 +95,7 @@ export function FollowUps() {
   const stats = [
     { label: 'Pending follow-ups', value: counts?.pending, hint: 'Still open', key: 'pending', icon: AlarmClock, tone: 'accent' as const },
     { label: 'Overdue', value: counts?.overdue, hint: 'Past due date', key: 'overdue', icon: Flame, tone: 'danger' as const },
-    { label: 'Today', value: counts?.today, hint: 'Due today', key: 'today', icon: Clock, tone: 'warning' as const },
+    { label: 'Today', value: counts ? `${counts.todayDone}/${counts.today}` : undefined, hint: counts ? `${counts.today - counts.todayDone} open · due today` : 'Due today', key: 'today', icon: Clock, tone: 'warning' as const },
     { label: 'Tomorrow', value: counts?.tomorrow, hint: 'Due tomorrow', key: 'tomorrow', icon: CalendarClock, tone: 'accent' as const },
     { label: 'Upcoming', value: counts?.upcoming, hint: 'After tomorrow', key: 'upcoming', icon: CalendarRange, tone: 'info' as const },
     { label: 'Completed', value: counts?.completed, hint: 'Marked done', key: 'completed', icon: CheckCircle2, tone: 'success' as const },

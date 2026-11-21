@@ -454,6 +454,7 @@ export interface FollowUpsData {
     pending: number
     overdue: number
     today: number
+    todayDone: number
     yesterday: number
     tomorrow: number
     upcoming: number

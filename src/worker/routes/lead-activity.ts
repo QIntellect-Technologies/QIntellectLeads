@@ -443,6 +443,7 @@ leadActivity.get('/follow-ups', async (c) => {
     pending: open.length,
     overdue: open.filter((row) => row.followUp.dueDate < today).length,
     today: all.filter((row) => row.followUp.dueDate === today).length,
+    todayDone: all.filter((row) => row.followUp.dueDate === today && row.followUp.completed).length,
     yesterday: all.filter((row) => row.followUp.dueDate === yesterday).length,
     tomorrow: all.filter((row) => row.followUp.dueDate === tomorrow).length,
     upcoming: all.filter((row) => row.followUp.dueDate > tomorrow).length,
